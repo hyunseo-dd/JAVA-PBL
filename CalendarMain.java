@@ -1,17 +1,21 @@
 import javax.swing.*;
 import java.awt.*;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class CalendarMain extends JFrame {
 
-    private CalendarView calendarView;
-    private Map<String, String> scheduleMap = new HashMap<>();
+    public static Map<String, List<Task>> scheduleMapStatic;
 
-    // Sidebar animation settings
+    private CalendarView calendarView;
+    private Map<String, List<Task>> scheduleMap = new HashMap<>();
+
     private JPanel sidebar;
     private int sidebarWidth = 180;
-    private boolean isSidebarOpen = true;
+
+    private boolean isSidebarOpen = false;  // ⭐ 처음엔 닫힌 상태로 시작하도록 수정함
+
     private final int ANIMATION_STEP = 10;
     private final int ANIMATION_DELAY = 5;
 
@@ -22,112 +26,99 @@ public class CalendarMain extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // =====================================
-        // 0) 전체 배경을 흰색으로 설정
-        // =====================================
-        getContentPane().setBackground(Color.WHITE);
+        scheduleMapStatic = scheduleMap;
 
-        // =====================================
-        // 1) 왼쪽 사이드바 (접힘/펼침)
-        // =====================================
+        // ===== Sidebar =====
         sidebar = new JPanel();
-        sidebar.setPreferredSize(new Dimension(sidebarWidth, 600));
+
+        // ⭐ 초기 width = 0으로 설정하여 처음엔 완전히 숨김
+        sidebar.setPreferredSize(new Dimension(0, 600));
+
         sidebar.setBackground(Color.WHITE);
         sidebar.setLayout(new GridLayout(10, 1, 0, 10));
 
-        JButton btnMenu1 = createSidebarMenuButton("메뉴 1");
-        JButton btnMenu2 = createSidebarMenuButton("메뉴 2");
-        JButton btnMenu3 = createSidebarMenuButton("메뉴 3");
+        JButton btnPomodoro = createSidebarButton("Pomodoro");
+        JButton btnSchedule = createSidebarButton("Schedule List");
+        JButton btnWeeklyStats = createSidebarButton("Weekly Status");
 
-        sidebar.add(btnMenu1);
-        sidebar.add(btnMenu2);
-        sidebar.add(btnMenu3);
+        sidebar.add(btnPomodoro);
+        sidebar.add(btnSchedule);
+        sidebar.add(btnWeeklyStats);
 
         add(sidebar, BorderLayout.WEST);
 
-        // =====================================
-        // 2) 상단 “三” 버튼
-        // =====================================
+        // ===== Top Bar =====
         JButton toggleBtn = new JButton("三");
         toggleBtn.setFont(new Font("Dialog", Font.BOLD, 28));
-        toggleBtn.setFocusPainted(false);
-        toggleBtn.setBorderPainted(false);
         toggleBtn.setBackground(Color.WHITE);
+        toggleBtn.setBorderPainted(false);
+        toggleBtn.setFocusPainted(false);
 
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        topBar.setBackground(Color.WHITE);  // 상단바도 흰색
+        topBar.setBackground(Color.WHITE);
         topBar.add(toggleBtn);
 
         add(topBar, BorderLayout.NORTH);
 
-        // =====================================
-        // 3) CalendarView (이미 흰색)
-        // =====================================
+        // ===== Calendar View =====
         calendarView = new CalendarView();
         add(calendarView, BorderLayout.CENTER);
 
-        // 일정 클릭 이벤트 연결
         calendarView.setDayClickListener(new CalendarView.DayClickListener() {
             @Override
             public void onSingleClick(String dateKey) {
-                String value = scheduleMap.get(dateKey);
+                List<Task> list = scheduleMap.get(dateKey);
 
-                if (value == null) {
+                if (list == null || list.isEmpty()) {
                     JOptionPane.showMessageDialog(CalendarMain.this,
                             dateKey + "\n일정이 없습니다.");
                 } else {
+                    StringBuilder sb = new StringBuilder();
+                    for (Task t : list) {
+                        sb.append("- ");
+                        if (t.done) sb.append("(완료) ");
+                        sb.append(t.text).append("\n");
+                    }
                     JOptionPane.showMessageDialog(CalendarMain.this,
-                            dateKey + "\n일정:\n" + value);
+                            dateKey + "\n일정:\n" + sb);
                 }
             }
 
             @Override
             public void onDoubleClick(String dateKey) {
-                SchedulePopup popup = new SchedulePopup(CalendarMain.this, dateKey, scheduleMap);
-                popup.setVisible(true);
+                new SchedulePopup(CalendarMain.this, dateKey, scheduleMap);
                 calendarView.repaint();
             }
         });
 
-        // =====================================
-        // 4) 메뉴 버튼 → 팝업 실행
-        // =====================================
-        btnMenu1.addActionListener(e -> new Menu1Popup(this, calendarView));
-        btnMenu2.addActionListener(e -> new Menu2Popup(this, calendarView));
-        btnMenu3.addActionListener(e -> new Menu3Popup(this, calendarView));
+        // ===== Sidebar Button Actions =====
+        btnPomodoro.addActionListener(e -> new PomodoroPopup(this, calendarView));
+        btnSchedule.addActionListener(e -> new Schedule(this, calendarView, scheduleMap));
+        btnWeeklyStats.addActionListener(e -> new WeeklyStatsPopup(this)); 
 
-        // =====================================
-        // 5) 사이드바 토글 ("三")
-        // =====================================
         toggleBtn.addActionListener(e -> toggleSidebar());
 
         setLocationRelativeTo(null);
         setVisible(true);
     }
 
-
-    // -------------------------------
-    // 메뉴 버튼 스타일 (흰색)
-    // -------------------------------
-    private JButton createSidebarMenuButton(String text) {
+    private JButton createSidebarButton(String text) {
         JButton btn = new JButton(text);
         btn.setFont(new Font("Dialog", Font.PLAIN, 16));
         btn.setBackground(Color.WHITE);
-        btn.setFocusPainted(false);
         btn.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+        btn.setFocusPainted(false);
         return btn;
     }
 
-    // -------------------------------
-    // 사이드바 접힘/펼침 애니메이션
-    // -------------------------------
     private void toggleSidebar() {
-        Timer timer = new Timer(ANIMATION_DELAY, null);
+
+        javax.swing.Timer timer = new javax.swing.Timer(ANIMATION_DELAY, null);
 
         timer.addActionListener(e -> {
             int currentWidth = sidebar.getWidth();
 
-            if (isSidebarOpen) { // 접힘
+            if (isSidebarOpen) {
                 int newWidth = currentWidth - ANIMATION_STEP;
                 if (newWidth <= 0) {
                     newWidth = 0;
@@ -135,7 +126,7 @@ public class CalendarMain extends JFrame {
                     timer.stop();
                 }
                 sidebar.setPreferredSize(new Dimension(newWidth, getHeight()));
-            } else { // 펼침
+            } else {
                 int newWidth = currentWidth + ANIMATION_STEP;
                 if (newWidth >= sidebarWidth) {
                     newWidth = sidebarWidth;
@@ -151,7 +142,6 @@ public class CalendarMain extends JFrame {
 
         timer.start();
     }
-
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(CalendarMain::new);
