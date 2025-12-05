@@ -35,18 +35,18 @@ public class TodoTimerApp extends JFrame {
         JTabbedPane tabbedPane = new JTabbedPane();
         tabbedPane.setFont(new Font("Malgun Gothic", Font.BOLD, 14));
 
-        tabbedPane.addTab("⏰ 타이머", createTimerPanel());
-        tabbedPane.addTab("☑️ 오늘 할 일", createTodoPanel());
-        tabbedPane.addTab("📅 주간 계획", new JPanel());
-        tabbedPane.addTab("🗓️ 월간 계획", new JPanel());
-        tabbedPane.addTab("📊 통계", createStatsPanel()); // 통계 탭 연결
+        tabbedPane.addTab("\u23F0 타이머", createTimerPanel());
+        tabbedPane.addTab("\u2713 오늘 할 일", createTodoPanel());
+        tabbedPane.addTab("\ud83d\udcc5 주간 계획", new JPanel());
+        tabbedPane.addTab("\ud83d\uddd3 월간 계획", new JPanel());
+        tabbedPane.addTab("\ud83d\udcca 통계", createStatsPanel()); // 통계 탭 연결
 
         // 탭 선택 시 통계 업데이트
         tabbedPane.addChangeListener(e -> {
             int index = tabbedPane.getSelectedIndex();
             String title = tabbedPane.getTitleAt(index);
 
-            if (title.equals("📊 통계")) {
+            if (title.equals("\ud83d\udcca 통계")) {
                 updateStatisticsUI();
             }
         });
@@ -71,7 +71,7 @@ public class TodoTimerApp extends JFrame {
         timerLabel.setFont(new Font("SansSerif", Font.BOLD, 72));
 
         startPauseButton = new JButton("▶ 시작");
-        resetButton = new JButton("🔄 재설정");
+        resetButton = new JButton("\ud83d\udd04 재설정");
 
         startPauseButton.setFont(new Font("Malgun Gothic", Font.PLAIN, 16));
         resetButton.setFont(new Font("Malgun Gothic", Font.PLAIN, 16));
@@ -117,7 +117,7 @@ public class TodoTimerApp extends JFrame {
 
         taskInputField = new JTextField(30);
         taskInputField.setFont(new Font("Malgun Gothic", Font.PLAIN, 14));
-        JButton addButton = new JButton("➕ 추가");
+        JButton addButton = new JButton("\u2722 추가");
         addButton.setFont(new Font("Malgun Gothic", Font.PLAIN, 14));
 
         JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
@@ -133,7 +133,7 @@ public class TodoTimerApp extends JFrame {
         JScrollPane scrollPane = new JScrollPane(todoList);
         panel.add(scrollPane, BorderLayout.CENTER);
 
-        JButton completeButton = new JButton("✔️ 선택 완료/삭제");
+        JButton completeButton = new JButton("\u2714 선택 완료/삭제");
         completeButton.setFont(new Font("Malgun Gothic", Font.PLAIN, 14));
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         buttonPanel.add(completeButton);
