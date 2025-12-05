@@ -2,180 +2,111 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.Calendar;
+import java.time.LocalDate;
+import java.time.YearMonth;
 
 public class CalendarView extends JPanel {
 
+    private YearMonth currentYearMonth;
+    private LocalDate today;
+
     private JLabel monthLabel;
     private JPanel calendarPanel;
-    private Calendar calendar;
-
-    private DayClickListener listener;
 
     public interface DayClickListener {
-        void onSingleClick(String dateKey);
-        void onDoubleClick(String dateKey);
+        void onSingleClick(LocalDate date);
+        void onDoubleClick(LocalDate date);
     }
+
+    private DayClickListener listener;
 
     public void setDayClickListener(DayClickListener listener) {
         this.listener = listener;
     }
 
     public CalendarView() {
-
         setLayout(new BorderLayout());
-        setBackground(Color.WHITE);
 
-        calendar = Calendar.getInstance();
+        today = LocalDate.now();
+        currentYearMonth = YearMonth.from(today);
 
-        // ==============================
-        // 🔶 상단: 월 표시 + 이동 버튼
-        // ==============================
-        JPanel top = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 15));
-        top.setBackground(Color.WHITE);
-
+        JPanel top = new JPanel(new BorderLayout());
         JButton prevBtn = new JButton("◀");
         JButton nextBtn = new JButton("▶");
 
         monthLabel = new JLabel("", SwingConstants.CENTER);
-        monthLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
-
-        top.add(prevBtn);
-        top.add(monthLabel);
-        top.add(nextBtn);
-
-        add(top, BorderLayout.NORTH);
-
-        // ==============================
-        // 🔶 요일 헤더 (UI 그대로 유지)
-        // ==============================
-        JPanel dayHeader = new JPanel(new GridLayout(1, 7));
-        dayHeader.setBackground(Color.WHITE);
-
-        String[] days = {"일", "월", "화", "수", "목", "금", "토"};
-        Color[] colors = {
-                new Color(220, 70, 70), // 일요일
-                Color.BLACK, Color.BLACK, Color.BLACK, Color.BLACK,
-                new Color(50, 80, 200), // 금요일
-                new Color(50, 80, 200)  // 토요일
-        };
-
-        for (int i = 0; i < 7; i++) {
-            JLabel lbl = new JLabel(days[i], SwingConstants.CENTER);
-            lbl.setFont(new Font("Dialog", Font.BOLD, 14));
-            lbl.setForeground(colors[i]);
-            dayHeader.add(lbl);
-        }
-
-        // ==============================
-        // 🔶 날짜 패널 (5x7 그대로)
-        // ==============================
-        calendarPanel = new JPanel(new GridLayout(5, 7));
-        calendarPanel.setBackground(Color.WHITE);
-
-        // CENTER에 요일 + 날짜를 같이 넣기 위한 wrapper
-        JPanel centerWrapper = new JPanel(new BorderLayout());
-        centerWrapper.setBackground(Color.WHITE);
-        centerWrapper.add(dayHeader, BorderLayout.NORTH);
-        centerWrapper.add(calendarPanel, BorderLayout.CENTER);
-
-        add(centerWrapper, BorderLayout.CENTER);
+        monthLabel.setFont(new Font("Dialog", Font.BOLD, 22));
 
         prevBtn.addActionListener(e -> {
-            calendar.add(Calendar.MONTH, -1);
-            updateMonthLabel();
-            drawCalendar();
+            currentYearMonth = currentYearMonth.minusMonths(1);
+            refreshCalendar();
         });
-
         nextBtn.addActionListener(e -> {
-            calendar.add(Calendar.MONTH, 1);
-            updateMonthLabel();
-            drawCalendar();
+            currentYearMonth = currentYearMonth.plusMonths(1);
+            refreshCalendar();
         });
 
-        updateMonthLabel();
-        drawCalendar();
+        top.add(prevBtn, BorderLayout.WEST);
+        top.add(monthLabel, BorderLayout.CENTER);
+        top.add(nextBtn, BorderLayout.EAST);
+        add(top, BorderLayout.NORTH);
+
+        calendarPanel = new JPanel();
+        add(calendarPanel, BorderLayout.CENTER);
+
+        refreshCalendar();
     }
 
-    private void updateMonthLabel() {
-        monthLabel.setText(calendar.get(Calendar.YEAR) + " · " + (calendar.get(Calendar.MONTH) + 1));
-    }
-
-    private void drawCalendar() {
-
+    public void refreshCalendar() {
         calendarPanel.removeAll();
+        calendarPanel.setLayout(new GridLayout(7, 7));
 
-        Calendar temp = (Calendar) calendar.clone();
-        temp.set(Calendar.DAY_OF_MONTH, 1);
+        monthLabel.setText(currentYearMonth.getYear() + "년 " +
+                           currentYearMonth.getMonthValue() + "월");
 
-        int firstDay = temp.get(Calendar.DAY_OF_WEEK);
-        int lastDay = temp.getActualMaximum(Calendar.DAY_OF_MONTH);
+        String[] days = {"일", "월", "화", "수", "목", "금", "토"};
+        for (String d : days) {
+            JLabel lbl = new JLabel(d, SwingConstants.CENTER);
+            lbl.setFont(new Font("Dialog", Font.BOLD, 14));
+            calendarPanel.add(lbl);
+        }
 
-        int dayCounter = 1;
+        LocalDate firstDay = currentYearMonth.atDay(1);
+        int dayOfWeek = firstDay.getDayOfWeek().getValue() % 7;
+        int lastDay = currentYearMonth.lengthOfMonth();
 
-        // 전달 마지막 날짜
-        Calendar prev = (Calendar) temp.clone();
-        prev.add(Calendar.MONTH, -1);
-        int prevLast = prev.getActualMaximum(Calendar.DAY_OF_MONTH);
+        for (int i = 0; i < dayOfWeek; i++)
+            calendarPanel.add(new JLabel(""));
 
-        for (int i = 1; i <= 35; i++) {
+        for (int day = 1; day <= lastDay; day++) {
 
-            JButton btn = new JButton();
+            LocalDate date = currentYearMonth.atDay(day);
+            JButton btn = new JButton(String.valueOf(day));
             btn.setFocusPainted(false);
-            btn.setBorder(BorderFactory.createEmptyBorder());
-            btn.setBackground(Color.WHITE);
 
-            if (i < firstDay) {
-                // 전달 날짜
-                int d = prevLast - (firstDay - i) + 1;
-                btn.setText(String.valueOf(d));
-                btn.setForeground(new Color(190, 190, 190));
+            if (date.equals(today)) {
+                btn.setBackground(new Color(220, 240, 255));
             }
-            else if (dayCounter <= lastDay) {
-                // 이번 달 날짜
-                int today = dayCounter;
-                btn.setText(String.valueOf(today));
 
-                String dateKey = makeDateKey(
-                        calendar.get(Calendar.YEAR),
-                        calendar.get(Calendar.MONTH) + 1,
-                        today
-                );
+            btn.addMouseListener(new MouseAdapter() {
+                long lastClick = 0;
 
-                btn.setForeground(Color.BLACK);
-
-                btn.addMouseListener(new MouseAdapter() {
-                    long last = 0;
-
-                    @Override
-                    public void mouseClicked(MouseEvent e) {
-                        long now = System.currentTimeMillis();
-                        if (now - last < 250) {
-                            if (listener != null) listener.onDoubleClick(dateKey);
-                        } else {
-                            if (listener != null) listener.onSingleClick(dateKey);
-                        }
-                        last = now;
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    long now = System.currentTimeMillis();
+                    if (now - lastClick < 200) {
+                        if (listener != null) listener.onDoubleClick(date);
+                    } else {
+                        if (listener != null) listener.onSingleClick(date);
                     }
-                });
-
-                dayCounter++;
-
-            } else {
-                // 다음 달 날짜
-                int d = i - (firstDay + lastDay) + 1;
-                btn.setText(String.valueOf(d));
-                btn.setForeground(new Color(190, 190, 190));
-            }
+                    lastClick = now;
+                }
+            });
 
             calendarPanel.add(btn);
         }
 
-        calendarPanel.revalidate();
-        calendarPanel.repaint();
-    }
-
-    private String makeDateKey(int y, int m, int d) {
-        return y + "-" + m + "-" + d;
+        revalidate();
+        repaint();
     }
 }
