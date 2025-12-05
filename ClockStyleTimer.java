@@ -22,7 +22,7 @@ public class ClockStyleTimer extends JFrame {
         //时钟样式显示区
         clockPanel = new ClockPanel();
         add(clockPanel, BorderLayout.CENTER);
-        //输入时间区域（分钟/秒 + 自动修正）
+        //输入时间区域：分钟秒和自动修正
         JPanel setPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 10));
         setPanel.setBorder(BorderFactory.createTitledBorder("设置时间"));
 
@@ -39,7 +39,7 @@ public class ClockStyleTimer extends JFrame {
         secField.setColumns(3);
         secField.setHorizontalAlignment(JTextField.CENTER);
 
-        //自动修正与实时更新
+        //自动修正和实时更新
         minField.addPropertyChangeListener("value", e -> {
             clampInput();
             updateClockFromInput();
@@ -55,7 +55,7 @@ public class ClockStyleTimer extends JFrame {
         setPanel.add(secondSpinner);
 
         add(setPanel, BorderLayout.NORTH);
-        //按钮区域
+        //按钮区
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
 
         JButton startBtn = new JButton("Start");
@@ -71,7 +71,7 @@ public class ClockStyleTimer extends JFrame {
         buttonPanel.add(resetBtn);
 
         add(buttonPanel, BorderLayout.SOUTH);
-        //Timer 逻辑
+        //Timer的逻辑
         timer = new Timer(1000, e -> {
             if (totalSeconds > 0) {
                 totalSeconds--;
@@ -88,7 +88,7 @@ public class ClockStyleTimer extends JFrame {
 
         updateClockFromInput();
     }
-    //自动修正clamp功能/整合分钟/秒合法化
+    //自动修正clamp功能 整合分钟 秒合理化
     private void clampInput() {
         try {
             int min = (Integer) minuteSpinner.getValue();
@@ -97,7 +97,7 @@ public class ClockStyleTimer extends JFrame {
             if (min < 0) minuteSpinner.setValue(0);
             if (sec < 0) secondSpinner.setValue(0);
 
-            //输入时间自动进位功能
+            //输入时间自动进位
             if (sec > 59) {
                 int newMin = min + sec / 60;
                 int newSec = sec % 60;
@@ -111,7 +111,7 @@ public class ClockStyleTimer extends JFrame {
         }
     }
 
-    // 读取输入 → 更新时钟
+    //读取输入后更新时钟
     private void updateClockFromInput() {
         int min = (Integer) minuteSpinner.getValue();
         int sec = (Integer) secondSpinner.getValue();
@@ -122,13 +122,13 @@ public class ClockStyleTimer extends JFrame {
         clockPanel.setCurrentTime(totalSeconds, originalSeconds);
     }
 
-    // 开始计时
+    //开始计时
     private void startTimer() {
         updateClockFromInput();  // 开始前再次确保同步
         if (totalSeconds > 0) timer.start();
     }
 
-    // 重置到 00:00
+    //重置归零
     private void resetTimer() {
         timer.stop();
         totalSeconds = 0;
@@ -136,7 +136,7 @@ public class ClockStyleTimer extends JFrame {
         clockPanel.setCurrentTime(0, 1);
     }
 
-    // 弹窗
+    //弹窗
     private void showAlert() {
         JOptionPane.showMessageDialog(
                 this,
@@ -145,7 +145,7 @@ public class ClockStyleTimer extends JFrame {
                 JOptionPane.INFORMATION_MESSAGE
         );
     }
-    //   时钟样式：绘制圆盘 + 渐变背景 + 进度环 + 大数字
+    //时钟样式：绘制圆盘 渐变背景 进度环 大数字
     class ClockPanel extends JPanel {
 
         private int currentSeconds = 0;
@@ -173,15 +173,13 @@ public class ClockStyleTimer extends JFrame {
             g2.setColor(new Color(230, 230, 230));
             g2.fillOval(x, y, size, size);
 
-
-            //内部渐变圆
+            //内部渐变圆形
             GradientPaint gradient = new GradientPaint(
                     x, y, new Color(250, 250, 255),
                     x + size, y + size, new Color(225, 225, 240)
             );
             g2.setPaint(gradient);
             g2.fillOval(x + 12, y + 12, size - 24, size - 24);
-
 
             //进度环
             float progress = (float) currentSeconds / maxSeconds;
