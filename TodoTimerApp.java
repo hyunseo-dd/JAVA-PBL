@@ -1,20 +1,24 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.time.LocalDate;
+import java.util.List;
 
 public class TodoTimerApp extends JFrame {
 
-    private Timer swingTimer;
-    private int secondsRemaining = 600;
-    private boolean isTimerRunning = false;
-    private DefaultListModel<String> listModel;
-
-    private JLabel timerLabel;
+    private TenMinuteTimer timerPanel; 
+    
+    // ★ 백엔드 서비스 연결
+    private TaskService taskService;
+    
     private JButton startPauseButton;
     private JButton resetButton;
     private JTextField taskInputField;
-    private JList<String> todoList;
+    
+    // ★ String 대신 Task 객체를 담도록 변경
+    private JList<Task> todoList;
+    private DefaultListModel<Task> listModel;
 
     // 통계 UI 요소
     private JPanel statsPanel;
@@ -25,39 +29,44 @@ public class TodoTimerApp extends JFrame {
     private JLabel lblMostTask;
 
     public TodoTimerApp() {
+        // 1. 백엔드 서비스 시작 (파일 이름 지정)
+        taskService = new TaskService("todo_list_data.json");
+
         UIManager.put("OptionPane.messageFont", new Font("Malgun Gothic", Font.PLAIN, 14));
         UIManager.put("Button.font", new Font("Malgun Gothic", Font.PLAIN, 14));
 
-        setTitle("JUST 10min Todo-List (ADHD 전략 앱)");
+        setTitle("JUST 10min Todo-List (ADHD 전략 앱) - 통합 완성본");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(700, 650);
+        setSize(700, 700);
 
         JTabbedPane tabbedPane = new JTabbedPane();
         tabbedPane.setFont(new Font("Malgun Gothic", Font.BOLD, 14));
 
         tabbedPane.addTab("\u23F0 타이머", createTimerPanel());
         tabbedPane.addTab("\u2713 오늘 할 일", createTodoPanel());
+        // (주간/월간 탭은 나중에 CalendarMain 등과 합칠 수 있게 비워둠)
         tabbedPane.addTab("\ud83d\udcc5 주간 계획", new JPanel());
         tabbedPane.addTab("\ud83d\uddd3 월간 계획", new JPanel());
-        tabbedPane.addTab("\ud83d\udcca 통계", createStatsPanel()); // 통계 탭 연결
+        tabbedPane.addTab("\ud83d\udcca 통계", createStatsPanel());
 
-        // 탭 선택 시 통계 업데이트
+        // 2. 탭을 누를 때마다 데이터 새로고침 (아주 중요!)
         tabbedPane.addChangeListener(e -> {
             int index = tabbedPane.getSelectedIndex();
             String title = tabbedPane.getTitleAt(index);
-
-            if (title.equals("\ud83d\udcca 통계")) {
-                updateStatisticsUI();
+            
+            if (title.equals("\u2713 오늘 할 일")) {
+                loadTodayTasks(); // 할 일 목록 새로고침
+            } else if (title.equals("\ud83d\udcca 통계")) {
+                updateStatisticsUI(); // 통계 새로고침
             }
         });
 
         add(tabbedPane, BorderLayout.CENTER);
-
-        updateTimerLabel();
-        swingTimer = new Timer(1000, new TimerActionListener());
-
         setLocationRelativeTo(null);
         setVisible(true);
+        
+        // 앱 켜자마자 오늘 할 일 불러오기
+        loadTodayTasks();
     }
 
     // --------------------------
@@ -67,9 +76,8 @@ public class TodoTimerApp extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(20, 20));
         panel.setBorder(BorderFactory.createEmptyBorder(50, 50, 50, 50));
 
-        timerLabel = new JLabel("10:00", SwingConstants.CENTER);
-        timerLabel.setFont(new Font("SansSerif", Font.BOLD, 72));
-
+        timerPanel = new TenMinuteTimer(); 
+        
         startPauseButton = new JButton("▶ 시작");
         resetButton = new JButton("\ud83d\udd04 재설정");
 
@@ -83,33 +91,33 @@ public class TodoTimerApp extends JFrame {
         JLabel statusLabel = new JLabel("🕒 작업 시간 ", SwingConstants.CENTER);
         statusLabel.setFont(new Font("Malgun Gothic", Font.BOLD, 16));
 
-        JPanel centerPanel = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.insets = new Insets(10, 0, 5, 0);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        centerPanel.add(statusLabel, gbc);
-
-        gbc.gridy = 1;
-        gbc.insets = new Insets(10, 0, 20, 0);
-        centerPanel.add(timerLabel, gbc);
-
-        gbc.gridy = 2;
-        gbc.insets = new Insets(20, 0, 10, 0);
-        centerPanel.add(buttonPanel, gbc);
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.add(statusLabel, BorderLayout.NORTH);
+        centerPanel.add(timerPanel, BorderLayout.CENTER); 
+        centerPanel.add(buttonPanel, BorderLayout.SOUTH);
 
         panel.add(centerPanel, BorderLayout.CENTER);
 
-        startPauseButton.addActionListener(e -> toggleTimer());
-        resetButton.addActionListener(e -> resetTimer());
+        startPauseButton.addActionListener(e -> {
+            if (startPauseButton.getText().equals("▶ 시작") || startPauseButton.getText().equals("▶ 계속")) {
+                timerPanel.startTimer();
+                startPauseButton.setText("⏸ 일시 정지");
+            } else {
+                timerPanel.stopTimer();
+                startPauseButton.setText("▶ 계속");
+            }
+        });
+
+        resetButton.addActionListener(e -> {
+            timerPanel.stopTimer();
+            startPauseButton.setText("▶ 시작");
+        });
 
         return panel;
     }
 
     // --------------------------
-    // 할 일 리스트 패널
+    // 할 일 리스트 패널 (백엔드 연동됨!)
     // --------------------------
     private JPanel createTodoPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
@@ -117,6 +125,8 @@ public class TodoTimerApp extends JFrame {
 
         taskInputField = new JTextField(30);
         taskInputField.setFont(new Font("Malgun Gothic", Font.PLAIN, 14));
+        taskInputField.setToolTipText("할 일을 입력하고 엔터를 누르세요");
+        
         JButton addButton = new JButton("\u2722 추가");
         addButton.setFont(new Font("Malgun Gothic", Font.PLAIN, 14));
 
@@ -126,14 +136,25 @@ public class TodoTimerApp extends JFrame {
 
         panel.add(inputPanel, BorderLayout.NORTH);
 
+        // Task 객체를 담는 모델
         listModel = new DefaultListModel<>();
         todoList = new JList<>(listModel);
         todoList.setFont(new Font("Malgun Gothic", Font.PLAIN, 16));
+        
+        // 더블 클릭 시 완료 처리 이벤트 추가
+        todoList.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    completeTask();
+                }
+            }
+        });
 
         JScrollPane scrollPane = new JScrollPane(todoList);
         panel.add(scrollPane, BorderLayout.CENTER);
 
-        JButton completeButton = new JButton("\u2714 선택 완료/삭제");
+        JButton completeButton = new JButton("\u2714 선택 완료");
         completeButton.setFont(new Font("Malgun Gothic", Font.PLAIN, 14));
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         buttonPanel.add(completeButton);
@@ -147,15 +168,13 @@ public class TodoTimerApp extends JFrame {
         return panel;
     }
 
-
     // --------------------------
     // 통계 패널
     // --------------------------
     private JPanel createStatsPanel() {
-
         statsPanel = new JPanel();
         statsPanel.setLayout(new BoxLayout(statsPanel, BoxLayout.Y_AXIS));
-        statsPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        statsPanel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
 
         lblTodayCount = new JLabel("오늘 총 수행 횟수: -");
         lblTodayTime = new JLabel("오늘 총 집중 시간: -");
@@ -163,25 +182,77 @@ public class TodoTimerApp extends JFrame {
         lblWeekTime = new JLabel("이번 주 총 집중 시간: -");
         lblMostTask = new JLabel("가장 많이 한 작업: -");
 
-        lblTodayCount.setFont(new Font("Malgun Gothic", Font.PLAIN, 18));
-        lblTodayTime.setFont(new Font("Malgun Gothic", Font.PLAIN, 18));
-        lblTodayRate.setFont(new Font("Malgun Gothic", Font.PLAIN, 18));
-        lblWeekTime.setFont(new Font("Malgun Gothic", Font.PLAIN, 18));
-        lblMostTask.setFont(new Font("Malgun Gothic", Font.PLAIN, 18));
+        // 폰트 통일
+        Font statFont = new Font("Malgun Gothic", Font.PLAIN, 18);
+        lblTodayCount.setFont(statFont);
+        lblTodayTime.setFont(statFont);
+        lblTodayRate.setFont(statFont);
+        lblWeekTime.setFont(statFont);
+        lblMostTask.setFont(statFont);
 
-        statsPanel.add(lblTodayCount);
-        statsPanel.add(lblTodayTime);
-        statsPanel.add(lblTodayRate);
-        statsPanel.add(lblWeekTime);
+        // 간격 추가
+        statsPanel.add(lblTodayCount); statsPanel.add(Box.createVerticalStrut(10));
+        statsPanel.add(lblTodayTime); statsPanel.add(Box.createVerticalStrut(10));
+        statsPanel.add(lblTodayRate); statsPanel.add(Box.createVerticalStrut(10));
+        statsPanel.add(lblWeekTime); statsPanel.add(Box.createVerticalStrut(10));
         statsPanel.add(lblMostTask);
 
         return statsPanel;
     }
 
+    // --------------------------
+    // ★ 핵심 로직 구현부
+    // --------------------------
 
-    // --------------------------
-    // 통계 UI 업데이트
-    // --------------------------
+    // 1. 오늘 할 일 목록 불러오기 (백엔드 -> UI)
+    private void loadTodayTasks() {
+        listModel.clear();
+        // TaskService에서 '오늘 할 일'만 가져와서 리스트에 채움
+        List<Task> tasks = taskService.getTasksForToday();
+        
+        if (tasks.isEmpty()) {
+            // (안내 메시지를 띄우고 싶다면 별도 처리 가능)
+        }
+        
+        for (Task t : tasks) {
+            listModel.addElement(t);
+        }
+        todoList.repaint();
+    }
+
+    // 2. 할 일 추가
+    private void addTask() {
+        String taskText = taskInputField.getText().trim();
+        if (!taskText.isEmpty()) {
+            // 백엔드에 저장 (제목, 우선순위 1, 마감일 오늘)
+            taskService.addTask(taskText, 1, LocalDate.now().toString());
+            taskInputField.setText("");
+            
+            // 목록 갱신
+            loadTodayTasks();
+        }
+    }
+
+    // 3. 할 일 완료
+    private void completeTask() {
+        Task selectedTask = todoList.getSelectedValue();
+        if (selectedTask != null) {
+            // 백엔드에 완료 요청 (루틴이면 자동 갱신됨)
+            boolean success = taskService.completeTask(selectedTask.getId());
+            
+            if (success) {
+                // 성공하면 목록 갱신
+                loadTodayTasks();
+                JOptionPane.showMessageDialog(this, "완료 처리되었습니다! 🎉");
+            } else {
+                JOptionPane.showMessageDialog(this, "처리 중 오류가 발생했습니다.");
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "완료할 할 일을 선택해주세요.");
+        }
+    }
+
+    // 4. 통계 갱신
     private void updateStatisticsUI() {
         StatisticsService stats = new StatisticsService();
 
@@ -198,151 +269,6 @@ public class TodoTimerApp extends JFrame {
         lblMostTask.setText("가장 많이 한 작업: " + mostTask);
     }
 
-
-    // --------------------------
-    // 타이머 조작
-    // --------------------------
-    private void updateTimerLabel() {
-        int minutes = secondsRemaining / 60;
-        int seconds = secondsRemaining % 60;
-        timerLabel.setText(String.format("%02d:%02d", minutes, seconds));
-    }
-
-    private void toggleTimer() {
-        if (isTimerRunning) {
-            swingTimer.stop();
-            startPauseButton.setText("▶ 계속");
-        } else {
-            swingTimer.start();
-            startPauseButton.setText("⏸ 일시 정지");
-        }
-        isTimerRunning = !isTimerRunning;
-    }
-
-    private void resetTimer() {
-        swingTimer.stop();
-        secondsRemaining = 600;
-        isTimerRunning = false;
-        startPauseButton.setText("▶ 시작");
-        updateTimerLabel();
-    }
-
-
-    // --------------------------
-    // 할 일 기능
-    // --------------------------
-
-    private void addTask() {
-        String taskText = taskInputField.getText().trim();
-        if (!taskText.isEmpty()) {
-            listModel.addElement(taskText);
-            taskInputField.setText("");
-            if (listModel.getSize() == 1) {
-                todoList.setSelectedIndex(0);
-            }
-        }
-    }
-
-    private void completeTask() {
-        int selectedIndex = todoList.getSelectedIndex();
-        if (selectedIndex != -1) {
-            listModel.remove(selectedIndex);
-            if (listModel.getSize() > 0) {
-                int newIndex = (selectedIndex < listModel.getSize()) ? selectedIndex : 0;
-                todoList.setSelectedIndex(newIndex);
-            }
-        }
-    }
-
-
-    // --------------------------
-    // 타이머 종료 처리
-    // --------------------------
-    private class TimerActionListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            if (secondsRemaining > 0) {
-                secondsRemaining--;
-                updateTimerLabel();
-            } else {
-
-                swingTimer.stop();
-                isTimerRunning = false;
-                startPauseButton.setText("▶ 시작");
-
-                // --- 1. 사용자 평가 팝업 ---
-                Object[] evaluationOptions = {"😃 기쁨", "😐 보통", "😔 슬픔"};
-                int evaluationChoice = JOptionPane.showOptionDialog(
-                        TodoTimerApp.this,
-                        "10분 집중 시간이 끝났어요!\n오늘의 할 일은 어떠셨나요?",
-                        "✅ 할 일 평가하기",
-                        JOptionPane.YES_NO_CANCEL_OPTION,
-                        JOptionPane.QUESTION_MESSAGE,
-                        null,
-                        evaluationOptions,
-                        evaluationOptions[1]
-                );
-
-                String evaluation;
-                switch (evaluationChoice) {
-                    case 0: evaluation = "기쁨"; break;
-                    case 1: evaluation = "보통"; break;
-                    case 2: evaluation = "슬픔"; break;
-                    default: evaluation = "평가 안 함"; break;
-                }
-
-                // --- 2. ★ TaskRecord 저장 (중요 ★)
-                String taskName = "";
-                int idx = todoList.getSelectedIndex();
-                if (idx != -1) taskName = listModel.getElementAt(idx);
-                else taskName = "작업 이름 없음";
-
-                TaskRecord record = new TaskRecord(
-                        taskName,
-                        600,
-                        evaluation,
-                        true
-                );
-
-                DataRepository.getInstance().addRecord(record);
-                System.out.println("📌 TaskRecord 저장됨: " + record);
-
-
-                // --- 3. 다음 작업 이동 팝업 ---
-                int actionChoice = JOptionPane.showConfirmDialog(
-                        TodoTimerApp.this,
-                        "다음 단계는 무엇인가요?\n이 일을 계속 진행할까요? (예)\n다음 할 일로 갈까요? (아니오)",
-                        "❓ 다음 행동 결정",
-                        JOptionPane.YES_NO_OPTION
-                );
-
-                if (actionChoice == JOptionPane.YES_OPTION) {
-                    secondsRemaining = 600;
-                    toggleTimer();
-                    JOptionPane.showMessageDialog(TodoTimerApp.this, "다시 10분 집중 시작합니다!");
-                } else {
-                    int currentIndex = todoList.getSelectedIndex();
-                    int nextIndex = currentIndex + 1;
-
-                    if (listModel.getSize() == 0) {
-                        JOptionPane.showMessageDialog(TodoTimerApp.this, "할 일이 없습니다.");
-                        resetTimer();
-                    } else if (nextIndex >= listModel.getSize()) {
-                        todoList.setSelectedIndex(0);
-                        resetTimer();
-                    } else {
-                        todoList.setSelectedIndex(nextIndex);
-                        resetTimer();
-                    }
-                }
-            }
-        }
-    }
-
-
-    // --------------------------
-    // 실행 함수
-    // --------------------------
     public static void main(String[] args) {
         SwingUtilities.invokeLater(TodoTimerApp::new);
     }
