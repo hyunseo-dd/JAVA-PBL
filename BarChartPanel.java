@@ -22,43 +22,37 @@ public class BarChartPanel extends JPanel {
         int max = 1;
         for (int v : data) max = Math.max(max, v);
 
-        int barWidth = 40;      // 막대 너비 고정
-        int barGap = 20;        // 막대 간격
+        int barWidth = 40;     
+        int barGap = 20;       
 
         int totalBarsWidth = data.length * barWidth + (data.length - 1) * barGap;
 
-        // ★★★ 가운데 정렬 offset 계산
         int startX = (width - totalBarsWidth) / 2;
 
         Graphics2D g2 = (Graphics2D) g;
         g2.setStroke(new BasicStroke(2));
         g2.setColor(Color.BLACK);
 
-        // x축
+
         g2.drawLine(30, height - 50, width - 20, height - 50);
 
-        // 막대 그리기
         for (int i = 0; i < data.length; i++) {
             int barHeight = (int) ((double) data[i] / max * (height - 120));
 
             int x = startX + i * (barWidth + barGap);
             int y = height - 50 - barHeight;
 
-            // 막대 색
             g2.setColor(new Color(70, 140, 255));
             g2.fillRect(x, y, barWidth, barHeight);
 
-            // 막대 테두리
             g2.setColor(Color.BLACK);
             g2.drawRect(x, y, barWidth, barHeight);
 
-            // 숫자 표시
             g2.drawString(String.valueOf(data[i]),
                     x + barWidth / 3,
                     y - 5
             );
 
-            // 요일 레이블
             g2.drawString(labels[i],
                     x + barWidth / 3,
                     height - 30
