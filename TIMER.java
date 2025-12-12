@@ -1,11 +1,16 @@
+// TIMER.java 파일 전체를 덮어쓰세요
+
 import java.awt.*;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
+import java.time.LocalDateTime;
 
+// Tassk.java의 필드를 사용하는 TaskRecord 클래스 (TaskService에서 TaskRecord를 사용하므로 유지)
 class TaskRecord {
+    // TaskRecord는 StatisticsService에서 사용하므로 Tassk와는 별개로 유지합니다.
     private String title;
     private int duration;
     private long completedAt;
@@ -29,13 +34,15 @@ class TaskRecord {
     }
 }
 
-
-// 模拟原 TaskRecordManager 保存功能
+// TaskRecordManager를 TaskService로 대체하기 위한 임시 클래스
 class TaskRecordManager {
     public static void save(TaskRecord record) {
-        System.out.println("任务已保存: " + record);
+        // TaskService의 addRecord를 호출하여 통계 기록을 저장합니다.
+        TaskService.getInstance().addRecord(record); 
+        System.out.println("✅ TaskService를 통해 통계 기록 저장 완료: " + record);
     }
 }
+
 public class TIMER extends JFrame {
 
     private JTextField timeInput;
@@ -44,7 +51,7 @@ public class TIMER extends JFrame {
     private int originalSeconds = 1;
     private ClockPanel clockPanel;
 
-    // Pomodoro逻辑
+    // Pomodoro logic
     private boolean pomodoroMode = false;
     private int pomodoroWorkSeconds = 25 * 60;
     private int pomodoroRestSeconds = 5 * 60;
@@ -52,15 +59,14 @@ public class TIMER extends JFrame {
     private int currentCycle = 0;
     private boolean onWork = true;
 
-    // 任务选择
+    // Task selection (Tassk → Task로 변경)
     private JTextField taskInput;
     private JList<String> taskList;
     private DefaultListModel<String> taskListModel;
-    // 保存完成状态
     private Map<String, Boolean> taskCompletedMap = new HashMap<>();
 
     public TIMER() {
-        setTitle("Clock Style计时器");
+        setTitle("시계/타이머");
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
@@ -73,9 +79,9 @@ public class TIMER extends JFrame {
         add(clockPanel, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER,15,10));
-        JButton startBtn = new JButton("Start");
-        JButton stopBtn = new JButton("Stop");
-        JButton resetBtn = new JButton("Reset");
+        JButton startBtn = new JButton("시작");
+        JButton stopBtn = new JButton("정지");
+        JButton resetBtn = new JButton("리셋");
         buttonPanel.add(startBtn);
         buttonPanel.add(stopBtn);
         buttonPanel.add(resetBtn);
@@ -89,22 +95,22 @@ public class TIMER extends JFrame {
                 timer.stop();
                 if(pomodoroMode){
                     if(onWork){
-                        //写入统计数据（Pomodoro 工作结束）
-                        saveTaskRecord(pomodoroWorkSeconds / 60, "Pomodoro任务");
+                        // Save statistics data (Pomodoro Work done)
+                        saveTaskRecord(pomodoroWorkSeconds / 60, "Pomodoro 작업");
 
-                        JOptionPane.showMessageDialog(this, "专注阶段完成！休息一下", "Pomodoro", JOptionPane.INFORMATION_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "집중 단계 완료! 잠시 휴식하세요.", "Pomodoro", JOptionPane.INFORMATION_MESSAGE);
                         onWork = false;
                     } else {
-                        JOptionPane.showMessageDialog(this, "休息结束！准备下一轮专注", "Pomodoro", JOptionPane.INFORMATION_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "휴식 끝! 다음 집중 단계를 준비하세요.", "Pomodoro", JOptionPane.INFORMATION_MESSAGE);
                         onWork = true;
                         currentCycle++;
                     }
                     startPomodoroCycle();
                 } else {
-                    JOptionPane.showMessageDialog(this, "时间到啦！", "提醒", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "시간이 다 되었어요!", "알림", JOptionPane.INFORMATION_MESSAGE);
 
-                    //写入统计数据（普通计时结束）
-                    saveTaskRecord(originalSeconds / 60, "计时器任务");
+                    // Save statistics data (Normal timer done)
+                    saveTaskRecord(originalSeconds / 60, "일반 타이머 작업");
                 }
             }
         });
@@ -122,12 +128,13 @@ public class TIMER extends JFrame {
 
         JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.LEFT,10,10));
         navPanel.setBackground(Color.WHITE);
-        JButton backBtn = new JButton("日历");
+        JButton backBtn = new JButton("달력");
         backBtn.setBackground(Color.WHITE);
         backBtn.setBorder(new LineBorder(Color.BLACK,1));
         backBtn.setFocusPainted(false);
         backBtn.addActionListener(e -> {
-            new Calendar(); // 打开日历
+            // Calendar 클래스 호출
+            new Calendar(); 
             dispose();
         });
         navPanel.add(backBtn);
@@ -137,21 +144,21 @@ public class TIMER extends JFrame {
         timePanel.setBackground(Color.WHITE);
         timeInput = new JTextField("10:00",5);
         timeInput.setHorizontalAlignment(JTextField.CENTER);
-        timeInput.setFont(new Font("SansSerif", Font.PLAIN,18));
-        timePanel.add(new JLabel("分钟:秒"));
+        timeInput.setFont(new Font("맑은 고딕", Font.PLAIN,18));
+        timePanel.add(new JLabel("분:초"));
         timePanel.add(timeInput);
         top.add(timePanel, BorderLayout.CENTER);
 
         JPanel pomodoroPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT,10,10));
         pomodoroPanel.setBackground(Color.WHITE);
-        JCheckBox pomodoroCheck = new JCheckBox("Pomodoro模式");
+        JCheckBox pomodoroCheck = new JCheckBox("Pomodoro 모드");
         pomodoroCheck.setBackground(Color.WHITE);
         pomodoroCheck.addActionListener(e -> {
             pomodoroMode = pomodoroCheck.isSelected();
             currentCycle = 0;
             onWork = true;
             if(pomodoroMode){
-                JOptionPane.showMessageDialog(this, "Pomodoro模式已开启", "提示", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Pomodoro 모드 활성화", "알림", JOptionPane.INFORMATION_MESSAGE);
             }
         });
         pomodoroPanel.add(pomodoroCheck);
@@ -163,44 +170,20 @@ public class TIMER extends JFrame {
     private void buildTaskSelectionPanel(){
         JPanel taskPanel = new JPanel(new BorderLayout());
         taskPanel.setBackground(Color.WHITE);
-        taskPanel.setBorder(BorderFactory.createTitledBorder("任务选择"));
+        taskPanel.setBorder(BorderFactory.createTitledBorder("작업 선택"));
 
         JPanel inputPanel = new JPanel(new FlowLayout(FlowLayout.LEFT,5,5));
         inputPanel.setBackground(Color.WHITE);
-        inputPanel.add(new JLabel("任务名:"));
+        inputPanel.add(new JLabel("작업명:"));
         taskInput = new JTextField(10);
         inputPanel.add(taskInput);
         taskPanel.add(inputPanel, BorderLayout.NORTH);
 
         taskListModel = new DefaultListModel<>();
-        taskListModel.addElement("任务A");
-        taskListModel.addElement("任务B");
-        taskListModel.addElement("任务C");
+        taskListModel.addElement("작업 A");
+        taskListModel.addElement("작업 B");
+        taskListModel.addElement("작업 C");
         taskList = new JList<>(taskListModel);
-        taskList.setCellRenderer(new DefaultListCellRenderer(){
-            @Override
-            public Component getListCellRendererComponent(JList<?> list,Object value,int index,boolean isSelected,boolean cellHasFocus){
-                JLabel label = (JLabel) super.getListCellRendererComponent(list,value,index,isSelected,cellHasFocus);
-                String text = value.toString();
-                if(taskCompletedMap.getOrDefault(text,false)){
-                    label.setText("✔ " + text);
-                    label.setFont(
-                    label.getFont().deriveFont(
-                    java.util.Collections.singletonMap(
-                    java.awt.font.TextAttribute.STRIKETHROUGH,
-                    java.awt.font.TextAttribute.STRIKETHROUGH_ON
-        )
-    )
-);
-;
-                } else {
-                    label.setText(text);
-                    label.setFont(label.getFont().deriveFont(Font.PLAIN));
-                }
-                return label;
-            }
-        });
-
         taskList.setVisibleRowCount(5);
         taskList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JScrollPane scrollPane = new JScrollPane(taskList);
@@ -220,7 +203,7 @@ public class TIMER extends JFrame {
 
     private void startPomodoroCycle(){
         if(currentCycle >= pomodoroCycles){
-            JOptionPane.showMessageDialog(this, "所有Pomodoro轮次已完成！", "完成", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "모든 Pomodoro 세션 완료!", "완료", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         totalSeconds = onWork ? pomodoroWorkSeconds : pomodoroRestSeconds;
@@ -255,7 +238,6 @@ public class TIMER extends JFrame {
         }
     }
 
-    // 保存TaskRecord并标记完成状态
     private void saveTaskRecord(int durationMinutes, String defaultTitle){
         String title = taskInput.getText().trim();
         if(title.isEmpty() && taskList.getSelectedValue() != null){
@@ -268,30 +250,8 @@ public class TIMER extends JFrame {
         record.setDuration(durationMinutes);
         record.setCompletedAt(System.currentTimeMillis());
 
-        // 保存到原 TaskRecordManager
+        // Save to TaskService
         TaskRecordManager.save(record);
-
-        //保存到 TaskService
-        try {
-        Tassk task = new Tassk(
-            record.getTitle(),
-            1,                 // 默认优先级
-            LocalDate.now()    // 今天的日期
-            );
-
-    TasskSer.getInstance().addTask(LocalDate.now(), task);
-
-} catch (Exception e) {
-    e.printStackTrace();
-}
-
-
-        // 更新左侧任务列表
-        if(!taskListModel.contains(title)){
-            taskListModel.addElement(title);
-        }
-        taskCompletedMap.put(title,true);
-        taskList.repaint();
     }
 
     class ClockPanel extends JPanel{
@@ -325,7 +285,7 @@ public class TIMER extends JFrame {
             int min = currentSeconds / 60, sec = currentSeconds % 60;
             String text = String.format("%02d:%02d", min, sec);
             g2.setColor(Color.BLACK);
-            g2.setFont(new Font("Arial", Font.BOLD, 48));
+            g2.setFont(new Font("맑은 고딕", Font.BOLD, 48));
             FontMetrics fm = g2.getFontMetrics();
             int strWidth = fm.stringWidth(text);
             g2.drawString(text, getWidth()/2 - strWidth/2, getHeight()/2 + 20);
