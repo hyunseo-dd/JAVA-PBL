@@ -1,3 +1,5 @@
+// Calendar.java 파일 전체를 덮어쓰세요
+
 import java.awt.*;
 import java.awt.event.*;
 import java.time.LocalDate;
@@ -13,20 +15,20 @@ public class Calendar extends JFrame {
     private JPanel calendarPanel;
     private JLabel monthLabel;
 
-    // 左侧任务列表
-    private DefaultListModel<Tassk> taskListModel = new DefaultListModel<>();
-    private JList<Tassk> taskList;
+    // Tassk → Task로 변경
+    private DefaultListModel<Task> taskListModel = new DefaultListModel<>();
+    private JList<Task> taskList;
 
     public Calendar() {
-        setTitle("日历");
+        setTitle("일정 관리 달력");
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
         getContentPane().setBackground(Color.WHITE);
 
         buildTopBar();       // 顶部月份显示 + 翻页按钮
-        buildTaskPanel();    // 左侧任务列表
-        buildCalendar();     // 中央日历格子
+        buildTaskPanel();    // 왼쪽 task list
+        buildCalendar();     // 중앙 달력
 
         setVisible(true);
     }
@@ -34,27 +36,25 @@ public class Calendar extends JFrame {
     private void buildTopBar() {
         JPanel top = new JPanel(new BorderLayout());
         top.setBackground(Color.WHITE);
-        // 左上角“时钟”按钮（跳转到 TIMER 页面）
+        
         JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
         navPanel.setBackground(Color.WHITE);
 
-        JButton timerBtn = new JButton("时钟");
+        JButton timerBtn = new JButton("시계/타이머");
         timerBtn.setFocusPainted(false);
         timerBtn.setBorder(new LineBorder(Color.BLACK, 1));
 
-        // 点击跳转 TIMER 页面
+        // TIMER 클래스 호출 (TIMER.java 파일에 정의된 클래스)
         timerBtn.addActionListener(e -> {
-            new TIMER();  // 打开时钟界面
-            dispose();    // 关闭日历界面
+            new TIMER();  
+            dispose();    
         });
 
         navPanel.add(timerBtn);
-
-        // 将按钮放在左上角，不影响原来的月份与翻页按钮位置
         top.add(navPanel, BorderLayout.WEST);
 
         monthLabel = new JLabel("", JLabel.CENTER);
-        monthLabel.setFont(new Font("微软雅黑", Font.BOLD, 20));
+        monthLabel.setFont(new Font("맑은 고딕", Font.BOLD, 20));
         top.add(monthLabel, BorderLayout.CENTER);
 
         JPanel rightBtnPanel = new JPanel();
@@ -81,23 +81,32 @@ public class Calendar extends JFrame {
 
     private void buildTaskPanel() {
         JPanel leftPanel = new JPanel(new BorderLayout());
-        leftPanel.setBorder(BorderFactory.createTitledBorder("任务列表"));
-        leftPanel.setPreferredSize(new Dimension(200, getHeight()));
+        leftPanel.setBorder(BorderFactory.createTitledBorder("할 일 목록"));
+        leftPanel.setPreferredSize(new Dimension(250, getHeight())); // 너비 조정
 
         taskList = new JList<>(taskListModel);
-        taskList.setCellRenderer(new TaskCellRenderer());
+        // TaskCellRenderer가 Task 객체를 받도록 수정해야 합니다. (이후 단계에서)
+        // taskList.setCellRenderer(new TaskCellRenderer()); 
+        
+        // 데이터 로드 (TaskService를 통해)
+        refreshTaskList(); 
+        
         taskList.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 int index = taskList.locationToIndex(e.getPoint());
                 if (index >= 0) {
-                    Tassk task = taskListModel.get(index);
-                    if (e.getClickCount() == 1) { // 单击切换完成状态
-                        task.completed = !task.completed;
+                    Task task = taskListModel.get(index);
+                    // Single-click to toggle completion status
+                    if (e.getClickCount() == 1) { 
+                        // TaskService의 완료/루틴 로직 사용
+                        TaskService.getInstance().completeTask(task.getId().toString());
                         refreshTaskList();
                         refreshCalendar();
-                    } else if (e.getClickCount() == 2) { // 双击取消完成
-                        task.completed = false;
+                    } else if (e.getClickCount() == 2) { 
+                        // Double-click to un-complete or edit
+                        // 여기서는 일단 완료 상태를 다시 미완료로 돌린다고 가정 (로직은 TaskService에 위임)
+                        task.setCompleted(false); 
                         refreshTaskList();
                         refreshCalendar();
                     }
@@ -120,14 +129,26 @@ public class Calendar extends JFrame {
         if (calendarPanel == null) return;
         calendarPanel.removeAll();
 
-        monthLabel.setText(currentMonth.getMonth().toString() + " " + currentMonth.getYear());
+        monthLabel.setText(currentMonth.getYear() + "년 " + currentMonth.getMonthValue() + "월");
 
+        String[] week = {"월", "화", "수", "목", "금", "토", "일"};
+        for (String w : week) {
+            JLabel lbl = new JLabel(w, SwingConstants.CENTER);
+            lbl.setFont(new Font("맑은 고딕", Font.BOLD, 14));
+            lbl.setOpaque(true);
+            lbl.setBackground(Color.WHITE);
+            lbl.setBorder(new LineBorder(Color.LIGHT_GRAY, 1));
+            calendarPanel.add(lbl);
+        }
+        
         YearMonth ym = currentMonth;
         LocalDate firstOfMonth = ym.atDay(1);
         int dayOfWeek = firstOfMonth.getDayOfWeek().getValue(); // 1=Mon ... 7=Sun
         int daysInMonth = ym.lengthOfMonth();
 
-        for (int i = 1; i < dayOfWeek; i++) {
+        int start = dayOfWeek % 7; // 월요일 시작 (1=월, 7=일 -> 0=월, 6=일)
+
+        for (int i = 0; i < start; i++) {
             calendarPanel.add(new JLabel(""));
         }
 
@@ -135,23 +156,27 @@ public class Calendar extends JFrame {
             LocalDate date = ym.atDay(day);
             JPanel dayPanel = new JPanel();
             dayPanel.setLayout(new BoxLayout(dayPanel, BoxLayout.Y_AXIS));
-            dayPanel.setBorder(new LineBorder(Color.BLACK, 1));
+            dayPanel.setBorder(new LineBorder(Color.LIGHT_GRAY, 1));
             dayPanel.setBackground(Color.WHITE);
 
             JLabel dayLabel = new JLabel(String.valueOf(day));
-            dayLabel.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+            dayLabel.setFont(new Font("맑은 고딕", Font.PLAIN, 14));
             dayPanel.add(dayLabel);
 
-            List<Tassk> tasks = TasskSer.getInstance().getTasks(date);
-            for (Tassk t : tasks) {
-                JLabel tLabel = new JLabel(t.title);
-                tLabel.setFont(new Font("微软雅黑", Font.PLAIN, 12));
-                if (t.completed) {
-                    tLabel.setText("<html><strike>" + t.title + "</strike></html>");
+            // TaskService에서 해당 날짜의 Task를 가져옵니다.
+            List<Task> tasks = TaskService.getInstance().getTasks(date); 
+            
+            for (Task t : tasks) {
+                JLabel tLabel = new JLabel(t.getTitle());
+                tLabel.setFont(new Font("맑은 고딕", Font.PLAIN, 12));
+                
+                // 완료 상태 및 우선순위별 스타일 적용 (Task.java 필드에 맞춤)
+                if (t.isCompleted()) {
+                    tLabel.setText("<html><strike>" + t.getTitle() + "</strike></html>");
                     tLabel.setForeground(Color.GRAY);
                 } else {
-                    if (t.priority == 1) tLabel.setForeground(Color.RED);
-                    else if (t.priority == 2) tLabel.setForeground(Color.ORANGE);
+                    if (t.getPriority() == 1) tLabel.setForeground(Color.RED);
+                    else if (t.getPriority() == 2) tLabel.setForeground(Color.ORANGE);
                     else tLabel.setForeground(Color.GREEN.darker());
                 }
                 dayPanel.add(tLabel);
@@ -169,6 +194,12 @@ public class Calendar extends JFrame {
             calendarPanel.add(dayPanel);
         }
 
+        // 남은 셀 채우기
+        int remainingCells = 42 - calendarPanel.getComponentCount(); // 6주 * 7일 = 42
+        for (int i = 0; i < remainingCells; i++) {
+             calendarPanel.add(new JLabel(""));
+        }
+
         calendarPanel.revalidate();
         calendarPanel.repaint();
     }
@@ -176,64 +207,39 @@ public class Calendar extends JFrame {
     private void addTaskDialog(LocalDate date) {
         JPanel panel = new JPanel(new GridLayout(0, 1));
         JTextField titleField = new JTextField();
-        String[] options = {"高", "中", "低"};
+        String[] options = {"높음(1)", "중간(2)", "낮음(3)"};
         JComboBox<String> priorityBox = new JComboBox<>(options);
-        panel.add(new JLabel("任务名称:"));
+        
+        panel.add(new JLabel("할 일 제목:"));
         panel.add(titleField);
-        panel.add(new JLabel("优先级:"));
+        panel.add(new JLabel("우선순위:"));
         panel.add(priorityBox);
 
-        int result = JOptionPane.showConfirmDialog(this, panel, "添加任务", JOptionPane.OK_CANCEL_OPTION);
+        int result = JOptionPane.showConfirmDialog(this, panel, "할 일 추가 - " + date, JOptionPane.OK_CANCEL_OPTION);
+        
         if (result == JOptionPane.OK_OPTION) {
             String title = titleField.getText().trim();
-            int priority = priorityBox.getSelectedIndex() + 1;
+            // 선택된 항목의 인덱스 + 1을 우선순위로 사용 (0→1, 1→2, 2→3)
+            int priority = priorityBox.getSelectedIndex() + 1; 
+            
             if (!title.isEmpty()) {
-                Tassk task = new Tassk(title, priority, date);
-                TasskSer.getInstance().addTask(date, task);
-                taskListModel.addElement(task);
+                // TaskService를 통해 백엔드에 저장 (I/O 포함)
+                TaskService.getInstance().addTask(title, priority, date.toString()); 
+                
                 refreshTaskList();
                 refreshCalendar();
             }
         }
     }
-
-    // 刷新左侧任务列表，排序交给 TaskService
+    
+    // 왼쪽 Task List를 TaskService를 통해 다시 로드합니다.
     private void refreshTaskList() {
-        List<Tassk> allTasks = Collections.list(taskListModel.elements());
-        // 按优先级和完成状态排序
-        allTasks.sort((t1, t2) -> {
-            if (t1.completed != t2.completed) {
-                return Boolean.compare(t1.completed, t2.completed);
-            }
-            return Integer.compare(t2.priority, t1.priority);
-        });
         taskListModel.clear();
-        for (Tassk t : allTasks) {
+        // 모든 할 일을 가져와서 정렬
+        List<Task> allTasks = TaskService.getInstance().getAllTasksSorted("priority"); 
+        
+        // UI에 반영
+        for (Task t : allTasks) {
             taskListModel.addElement(t);
         }
     }
-
-    class TaskCellRenderer extends JCheckBox implements ListCellRenderer<Tassk> {
-        @Override
-        public Component getListCellRendererComponent(JList<? extends Tassk> list, Tassk value, int index,
-            boolean isSelected, boolean cellHasFocus) {
-            setText(value.completed ? "<html><strike>" + value.title + "</strike></html>" : value.title);
-            setSelected(value.completed);
-            setBackground(isSelected ? Color.LIGHT_GRAY : Color.WHITE);
-            setFont(new Font("微软雅黑", Font.PLAIN, 14));
-
-            if (!value.completed) {
-                if (value.priority == 1) setForeground(Color.RED);
-                else if (value.priority == 2) setForeground(Color.ORANGE);
-                else setForeground(Color.GREEN.darker());
-            } else {
-                setForeground(Color.GRAY);
-            }
-            return this;
-        }
-    }
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(Calendar::new);
-    }
-}
