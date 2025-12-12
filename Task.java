@@ -7,57 +7,63 @@ public class Task implements Serializable {
 
     private static final long serialVersionUID = 3L;
 
-    // 일정 관리 필드 (Calendar / Schedule)
+    // --- 캘린더/일정 필드 (Tassk.java 및 TaskService에서 사용) ---
     private UUID id;
-    private String name;
-    private int priority;
-    private LocalDate dueDate;
+    private String title; // Tassk.java의 title
+    private int priority; // Tassk.java의 priority
+    private LocalDate dueDate; // Tassk.java의 date 필드와 유사
+    private boolean isCompleted; // Tassk.java의 completed 필드와 유사
     
-    // 기록 및 완료 상태 필드 (Pomodoro / Statistics)
-    private boolean isCompleted;
-    private int durationSec; // 해당 작업에 집중한 시간 (초)
-    private String evaluation; // 완료 시 감정 평가 (예: 기쁨, 보통, 슬픔)
-    private LocalDateTime recordDateTime; // 해당 작업이 완료된 시점 기록
+    // --- 통계/루틴 필드 (DataRepository 및 TaskService에서 사용) ---
+    private int durationSec; 
+    private String evaluation; 
+    private LocalDateTime recordDateTime;
+    private String cycleFrequency = "NONE";
 
-    // 생성자 (일정 등록용)
-    public Task(String name, int priority, LocalDate dueDate) {
+    // ✅ [통합 생성자 1]: 일정 등록용 (Tassk.java와 동일 형태)
+    public Task(String title, int priority, LocalDate dueDate) {
         this.id = UUID.randomUUID();
-        this.name = name;
+        this.title = title;
         this.priority = priority;
         this.dueDate = dueDate;
         this.isCompleted = false;
         this.durationSec = 0;
     }
 
-    // 생성자 (통계 기록용 - 로직에서 사용)
+    // ✅ [통합 생성자 2]: 통계 기록용
     public Task(String name, int durationSec, String evaluation, boolean completed) {
         this.id = UUID.randomUUID();
-        this.name = name;
-        this.priority = 0; // 통계 기록에는 우선순위 불필요
+        this.title = name;
+        this.priority = 0;
         this.dueDate = LocalDate.now();
         this.isCompleted = completed;
         this.durationSec = durationSec;
         this.evaluation = evaluation;
         this.recordDateTime = LocalDateTime.now();
     }
-
-    // --- Getter/Setter (모두 포함) ---
+    
+    // --- Getter/Setter (기존 Task.java + Tassk.java getter 통합) ---
     public UUID getId() { return id; }
-    public String getName() { return name; }
+    public String getTitle() { return title; }
     public int getPriority() { return priority; }
     public LocalDate getDueDate() { return dueDate; }
-    public boolean isCompleted() { return isCompleted; }
-    public int getDurationSec() { return durationSec; }
-    public String getEvaluation() { return evaluation; }
-    public LocalDateTime getRecordDateTime() { return recordDateTime; }
-
+    
+    public boolean isCompleted() { return isCompleted; } // Tassk.completed 대신 isCompleted() 사용
     public void setCompleted(boolean completed) { this.isCompleted = completed; }
+
+    // 통계 관련 Getter/Setter
+    public int getDurationSec() { return durationSec; }
+    public LocalDateTime getRecordDateTime() { return recordDateTime; }
+    public String getEvaluation() { return evaluation; }
+    public String getCycleFrequency() { return cycleFrequency; }
+    
+    // 기타 필요한 Setter (생략)
     public void setDurationSec(int durationSec) { this.durationSec = durationSec; }
     public void setEvaluation(String evaluation) { this.evaluation = evaluation; }
-    public void setRecordDateTime(LocalDateTime recordDateTime) { this.recordDateTime = recordDateTime; }
-
+    public void setCycleFrequency(String cycleFrequency) { this.cycleFrequency = cycleFrequency; }
+    
     @Override
     public String toString() {
-        return String.format("%s [%d] %s (~%s)", isCompleted ? "✅" : "🔲", priority, name, dueDate);
+        return String.format("%s [%d] %s (~%s)", isCompleted ? "✅" : "🔲", priority, title, dueDate);
     }
 }
