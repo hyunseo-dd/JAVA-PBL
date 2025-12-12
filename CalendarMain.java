@@ -13,9 +13,8 @@ public class CalendarMain extends JFrame {
     private boolean sidebarOpen = false;
 
     public CalendarMain() {
-
-        this.taskService = new TaskService();
-
+    this.taskService = new TaskService("calendar_tasks.json"); 
+    
         setTitle("Calendar with Pomodoro");
         setSize(1200, 650);
         setDefaultCloseOperation(EXIT_ON_CLOSE);

@@ -2,62 +2,81 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 public class StatisticsService {
 
+    // DataRepository의 새 이름 함수 사용
     private final DataRepository repo = DataRepository.getInstance();
 
-    // 1. 오늘 기록 가져오기
-    public List<TaskRecord> getTodayRecords() {
-        return repo.getRecordsByDate(LocalDate.now());
+    // TaskRecord 대신 Task 사용
+    public List<Task> getTodayRecords() {
+        return repo.getTasksByDate(LocalDate.now());
     }
 
-    // 2. 오늘 총 집중 시간(초)
+    // TaskRecord 대신 Task 사용
     public int getTodayTotalFocusSec() {
         return getTodayRecords().stream()
-                .mapToInt(TaskRecord::getDurationSec)
+                .mapToInt(Task::getDurationSec) // Task의 DurationSec 사용
                 .sum();
     }
 
-    // 3. 오늘 달성률 (완료된 것 / 전체 시도)
+    // TaskRecord 대신 Task 사용
     public double getTodayAchievementRate() {
-        List<TaskRecord> today = getTodayRecords();
-        if (today.isEmpty()) return 0.0;
+        List<Task> today = getTodayRecords();
+        if (today.isEmpty()) return 0;
 
-        long completedCount = today.stream().filter(TaskRecord::isCompleted).count();
-        return (double) completedCount / today.size() * 100.0;
+        // Task의 isCompleted 사용
+        long completed = today.stream().filter(Task::isCompleted).count();
+        return (completed * 100.0) / today.size();
     }
 
-    // 4. 이번 주 기록 가져오기
-    public List<TaskRecord> getThisWeekRecords() {
+    // TaskRecord 대신 Task 사용
+    public List<Task> getThisWeekRecords() {
         LocalDate today = LocalDate.now();
         LocalDate startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate endOfWeek = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
-        return repo.getRecordsByWeek(startOfWeek, endOfWeek);
+        return repo.getTasksByWeek(startOfWeek, endOfWeek);
     }
 
-    // 5. 이번 주 총 집중 시간(초)
+    // TaskRecord 대신 Task 사용
     public int getWeeklyTotalFocusSec() {
         return getThisWeekRecords().stream()
-                .mapToInt(TaskRecord::getDurationSec)
+                .mapToInt(Task::getDurationSec) // Task의 DurationSec 사용
                 .sum();
     }
 
-    // 6. 가장 많이 한 작업 찾기 (빈도수 기준)
+    // TaskRecord 대신 Task 사용
     public String getMostFocusedTask() {
-        List<TaskRecord> all = repo.getAllRecords();
-        if (all.isEmpty()) return "-";
+        List<Task> all = repo.getAllTasks(); // Task 리스트 가져오기
+        if (all.isEmpty()) return "데이터 없음";
 
-        // 작업 이름별로 그룹화해서 개수 세기
-        Map<String, Long> countMap = all.stream()
-                .collect(Collectors.groupingBy(TaskRecord::getTaskName, Collectors.counting()));
+        // Task의 getName 사용
+        return all.stream()
+                .map(Task::getName)
+                .distinct()
+                .max((a, b) -> Long.compare(
+                        all.stream().filter(r -> r.getName().equals(a)).count(),
+                        all.stream().filter(r -> r.getName().equals(b)).count()
+                ))
+                .orElse("데이터 없음");
+    }
 
-        // 개수가 제일 많은 것 찾기
-        return countMap.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
-                .orElse("-");
+    // TaskRecord 대신 Task 사용
+    public double getWeeklyAverageEvaluationScore() {
+        List<Task> list = getThisWeekRecords();
+
+        int sum = 0;
+        int count = 0;
+
+        for (Task t : list) {
+            switch (t.getEvaluation()) {
+                case "기쁨": sum += 3; count++; break;
+                case "보통": sum += 2; count++; break;
+                case "슬픔": sum += 1; count++; break;
+            }
+        }
+
+        if (count == 0) return 0;
+        return (double) sum / count;
     }
 }
