@@ -1,29 +1,33 @@
 import javax.swing.*;
 import java.awt.*;
 
-public class CheckListRenderer extends JCheckBox implements ListCellRenderer<TodoItem> {
+public class CheckListRenderer extends JCheckBox implements ListCellRenderer<Task> {
 
     @Override
     public Component getListCellRendererComponent(
-            JList<? extends TodoItem> list,
-            TodoItem value,
+            JList<? extends Task> list,
+            Task value,
             int index,
             boolean isSelected,
             boolean cellHasFocus) {
 
         setEnabled(list.isEnabled());
-        setSelected(value.done);
+
+        // ✅ 완료 여부: getter 사용
+        setSelected(value.isCompleted());
+
         setFont(new Font("Dialog", Font.PLAIN, 16));
 
-        if (value.done) {
+        if (value.isCompleted()) {
             setForeground(Color.GRAY);
-            setText("<html><strike>" + value.text + "</strike></html>");
+            setText("<html><strike>" + value.getTitle() + "</strike></html>");
         } else {
             setForeground(Color.BLACK);
-            setText(value.text);
+            setText(value.getTitle());
         }
 
-        setBackground(Color.WHITE);
+        setBackground(isSelected ? new Color(230, 230, 230) : Color.WHITE);
+
         return this;
     }
 }
