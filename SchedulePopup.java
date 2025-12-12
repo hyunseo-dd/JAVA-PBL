@@ -13,7 +13,7 @@ public class SchedulePopup extends JDialog {
     private JList<Task> taskList;
     private JTextField inputField;
 
-    private int editIndex = -1; // 수정 모드 여부 판단값
+    private int editIndex = -1;
 
     public SchedulePopup(JFrame parent, LocalDate date, TaskService taskService) {
         super(parent, date.toString() + " 일정 관리", true);
@@ -26,41 +26,33 @@ public class SchedulePopup extends JDialog {
         setLayout(new BorderLayout());
 
         loadUI();
-
         setVisible(true);
     }
 
     private void loadUI() {
 
-        // ===== 상단 제목 =====
         JLabel title = new JLabel(date + " 일정", SwingConstants.CENTER);
         title.setFont(new Font("맑은 고딕", Font.BOLD, 18));
         add(title, BorderLayout.NORTH);
 
-        // ===== 중앙: 일정 리스트 =====
         model = new DefaultListModel<>();
-        List<Task> tasks = taskService.getTasks(date);
-        tasks.forEach(model::addElement);
+        refreshModel();
 
         taskList = new JList<>(model);
         taskList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         taskList.setFont(new Font("맑은 고딕", Font.PLAIN, 14));
 
-        // 더블클릭 → 수정모드 진입
         taskList.addMouseListener(new MouseAdapter() {
+            @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) startEdit();
             }
         });
 
-        JScrollPane scroll = new JScrollPane(taskList);
-        add(scroll, BorderLayout.CENTER);
+        add(new JScrollPane(taskList), BorderLayout.CENTER);
 
-        // ===== 아래쪽 입력창 + 버튼들 =====
         JPanel bottomPanel = new JPanel(new BorderLayout());
 
-        // 입력 영역
-        JPanel inputPanel = new JPanel(new BorderLayout());
         inputField = new JTextField();
         JButton addOrSaveBtn = new JButton("추가");
 
@@ -69,12 +61,12 @@ public class SchedulePopup extends JDialog {
             else saveEdit();
         });
 
+        JPanel inputPanel = new JPanel(new BorderLayout());
         inputPanel.add(inputField, BorderLayout.CENTER);
         inputPanel.add(addOrSaveBtn, BorderLayout.EAST);
 
         bottomPanel.add(inputPanel, BorderLayout.NORTH);
 
-        // ===== 완료 체크 / 삭제 / 수정 버튼 =====
         JPanel actionPanel = new JPanel(new GridLayout(1, 3, 10, 0));
 
         JButton doneBtn = new JButton("완료");
@@ -90,46 +82,46 @@ public class SchedulePopup extends JDialog {
         actionPanel.add(editBtn);
 
         bottomPanel.add(actionPanel, BorderLayout.SOUTH);
-
         add(bottomPanel, BorderLayout.SOUTH);
     }
 
-    // ===================== 일정 추가 =====================
+    // ===================== Task 처리 =====================
+
     private void addTask() {
         String text = inputField.getText().trim();
         if (text.isEmpty()) return;
 
-        Task task = new Task(text);
-        taskService.addTask(date, task);
-        model.addElement(task);
+        // ✅ 파일 기반 TaskService API 사용
+        taskService.addTask(
+                text,
+                1,                 // priority (임시값)
+                date.toString()    // dueDate
+        );
 
+        refreshModel();
         inputField.setText("");
     }
 
-    // ===================== 일정 삭제 =====================
     private void deleteTask() {
         int idx = taskList.getSelectedIndex();
         if (idx == -1) return;
 
         Task task = model.get(idx);
-        taskService.removeTask(date, task);
-        model.remove(idx);
+        taskService.deleteTask(task.getId());   // ✅ ID 기반 삭제
 
+        refreshModel();
         editIndex = -1;
         inputField.setText("");
     }
 
-    // ===================== 일정 수정 시작 =====================
     private void startEdit() {
         int idx = taskList.getSelectedIndex();
         if (idx == -1) return;
 
-        Task task = model.get(idx);
-        inputField.setText(task.title);
+        inputField.setText(model.get(idx).getTitle());
         editIndex = idx;
     }
 
-    // ===================== 일정 수정 저장 =====================
     private void saveEdit() {
         if (editIndex == -1) return;
 
@@ -137,33 +129,34 @@ public class SchedulePopup extends JDialog {
         if (newText.isEmpty()) return;
 
         Task task = model.get(editIndex);
-        task.title = newText;
 
-        reorderTasks();
+        // ✅ Service에 수정 위임
+        taskService.updateTaskDetails(
+                task.getId(),
+                newText,
+                null,              // priority 변경 없음
+                null,              // dueDate 변경 없음
+                null               // cycle 변경 없음
+        );
 
+        refreshModel();
         editIndex = -1;
         inputField.setText("");
     }
 
-    // ===================== 완료 체크 =====================
     private void toggleDone() {
         int idx = taskList.getSelectedIndex();
         if (idx == -1) return;
 
         Task task = model.get(idx);
-        task.done = !task.done;
+        taskService.completeTask(task.getId());   // ✅ 완료/루틴 로직 포함
 
-        reorderTasks();
+        refreshModel();
     }
 
-    // ===================== 완료된 일정은 아래로 정렬 =====================
-    private void reorderTasks() {
-
-        List<Task> tasks = taskService.getTasks(date);
-
-        tasks.sort((a, b) -> Boolean.compare(a.done, b.done)); // 완료된 일정 아래로
-
+    private void refreshModel() {
         model.clear();
+        List<Task> tasks = taskService.getTasks(date);
         tasks.forEach(model::addElement);
     }
 }
