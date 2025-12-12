@@ -4,16 +4,19 @@ import java.time.LocalDate;
 
 public class CalendarMain extends JFrame {
 
+    // ===================== 공용 서비스 =====================
     private final TaskService taskService;
-    private CalendarView calendarView;
 
+    // ===================== UI 구성요소 =====================
+    private CalendarView calendarView;
     private JPanel sidebar;
     private JButton toggleBtn;
     private boolean sidebarOpen = false;
 
+    // ===================== 생성자 =====================
     public CalendarMain() {
 
-        // ✅ 파일 기반 TaskService 생성자 사용
+        // 🔹 공용 TaskService (파일 기반)
         this.taskService = new TaskService("calendar_tasks.json");
 
         setTitle("Calendar with Pomodoro");
@@ -21,7 +24,7 @@ public class CalendarMain extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // ================= 상단 바 =================
+        // ===================== 상단 바 =====================
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
         topBar.setBackground(Color.WHITE);
 
@@ -35,7 +38,7 @@ public class CalendarMain extends JFrame {
         topBar.add(toggleBtn);
         add(topBar, BorderLayout.NORTH);
 
-        // ================= 사이드바 =================
+        // ===================== 사이드바 =====================
         sidebar = new JPanel();
         sidebar.setPreferredSize(new Dimension(220, 0));
         sidebar.setBackground(new Color(245, 245, 245));
@@ -44,36 +47,40 @@ public class CalendarMain extends JFrame {
 
         sidebar.add(Box.createVerticalStrut(10));
 
+        // Today Tasks
         JButton todayBtn = createSidebarButton("Today Tasks");
         todayBtn.addActionListener(e ->
                 new TodayTasksPopup(this, taskService)
         );
         sidebar.add(todayBtn);
 
+        // Weekly Stats → TimerAndStatsPanel의 통계 탭
         JButton weeklyBtn = createSidebarButton("Weekly Stats");
         weeklyBtn.addActionListener(e -> {
             TimerAndStatsDialog dialog =
                     new TimerAndStatsDialog(this, taskService);
-            dialog.showStatsTab();      // ✅ 통계 탭 바로 열기
+            dialog.showStatsTab();
             dialog.setVisible(true);
         });
         sidebar.add(weeklyBtn);
 
+        // Pomodoro Timer → TimerAndStatsPanel 기본 탭
         JButton pomoBtn = createSidebarButton("Pomodoro Timer");
         pomoBtn.addActionListener(e -> {
             TimerAndStatsDialog dialog =
                     new TimerAndStatsDialog(this, taskService);
-            dialog.setVisible(true);    // ✅ 기본: 타이머 탭
+            dialog.setVisible(true);
         });
         sidebar.add(pomoBtn);
 
         add(sidebar, BorderLayout.WEST);
 
-        // ================= 캘린더 =================
+        // ===================== 캘린더 뷰 =====================
         calendarView = new CalendarView(taskService);
         add(calendarView, BorderLayout.CENTER);
 
         calendarView.setDayClickListener(new CalendarView.DayClickListener() {
+
             @Override
             public void onSingleClick(LocalDate date) {
                 var tasks = taskService.getTasks(date);
@@ -108,7 +115,7 @@ public class CalendarMain extends JFrame {
         setVisible(true);
     }
 
-    // ================= 버튼 스타일 =================
+    // ===================== 사이드바 버튼 생성 =====================
     private JButton createSidebarButton(String text) {
         JButton btn = new JButton(text);
 
@@ -131,6 +138,7 @@ public class CalendarMain extends JFrame {
         return btn;
     }
 
+    // ===================== 사이드바 토글 =====================
     private void toggleSidebar() {
         sidebarOpen = !sidebarOpen;
         sidebar.setVisible(sidebarOpen);
@@ -138,6 +146,7 @@ public class CalendarMain extends JFrame {
         repaint();
     }
 
+    // ===================== main =====================
     public static void main(String[] args) {
         SwingUtilities.invokeLater(CalendarMain::new);
     }
