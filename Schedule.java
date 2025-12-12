@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 
 public class Schedule extends JDialog {
 
-    /** TaskRow: UI 컴포넌트를 한 번만 생성해서 계속 재사용 */
     private static class TaskRow {
         Task task;
         JCheckBox checkBox;
@@ -24,7 +23,7 @@ public class Schedule extends JDialog {
             updateStyle();
 
             checkBox.addActionListener(e -> {
-                task.done = checkBox.isSelected();
+                task.setCompleted(checkBox.isSelected());   // ✅ setter
                 updateStyle();
             });
 
@@ -33,22 +32,22 @@ public class Schedule extends JDialog {
         }
 
         void updateStyle() {
-            if (task.done) {
+            if (task.isCompleted()) {   // ✅ getter
                 checkBox.setSelected(true);
-                checkBox.setText("<html><strike>" + task.title + "</strike></html>");
+                checkBox.setText("<html><strike>" + task.getTitle() + "</strike></html>");
                 checkBox.setForeground(Color.GRAY);
             } else {
                 checkBox.setSelected(false);
-                checkBox.setText(task.title);
+                checkBox.setText(task.getTitle());
                 checkBox.setForeground(Color.BLACK);
             }
         }
     }
 
-    // =========================================================
-    // 생성자
-    // =========================================================
-    public Schedule(JFrame parent, CalendarView calendarView, Map<String, List<Task>> scheduleMap) {
+    public Schedule(JFrame parent,
+                    CalendarView calendarView,
+                    Map<String, List<Task>> scheduleMap) {
+
         super(parent, "Schedule List", true);
 
         setSize(calendarView.getWidth(), calendarView.getHeight());
@@ -80,8 +79,8 @@ public class Schedule extends JDialog {
                 String date = entry.getKey();
                 List<Task> tasks = entry.getValue();
 
-                // 정렬 후 표시
-                tasks.sort(Comparator.comparing(task -> task.done));
+                // ✅ 완료 여부 기준 정렬
+                tasks.sort(Comparator.comparing(Task::isCompleted));
 
                 JLabel dateLabel = new JLabel("▶ " + date);
                 dateLabel.setFont(new Font("Dialog", Font.BOLD, 18));
@@ -95,26 +94,21 @@ public class Schedule extends JDialog {
                 taskPanel.setBorder(BorderFactory.createEmptyBorder(0, 20, 10, 10));
                 taskPanel.setBackground(Color.WHITE);
 
-                // **TaskRow 객체를 한 번 만들어서 재사용**
                 List<TaskRow> rows = tasks.stream()
                         .map(TaskRow::new)
                         .collect(Collectors.toList());
 
-                // 패널에 TaskRow 배치
                 refreshTaskPanel(taskPanel, tasks, rows);
 
-                // 체크박스 리스너에서 정렬 후 패널만 다시 배치하도록 설정
                 for (TaskRow row : rows) {
                     row.checkBox.addActionListener(e -> {
-                        row.task.done = row.checkBox.isSelected();
 
-                        // Task 리스트만 정렬
-                        tasks.sort(Comparator.comparing(task -> task.done));
+                        row.task.setCompleted(row.checkBox.isSelected()); // ✅ setter
 
-                        // 스타일 업데이트
+                        tasks.sort(Comparator.comparing(Task::isCompleted));
+
                         rows.forEach(TaskRow::updateStyle);
 
-                        // 패널 순서만 재배치
                         refreshTaskPanel(taskPanel, tasks, rows);
                     });
                 }
@@ -136,10 +130,10 @@ public class Schedule extends JDialog {
         setVisible(true);
     }
 
-    // ======================================================
-    // UI 패널 순서만 재배치 (컴포넌트는 재사용!)
-    // ======================================================
-    private void refreshTaskPanel(JPanel panel, List<Task> sortedTasks, List<TaskRow> rows) {
+    private void refreshTaskPanel(JPanel panel,
+                                  List<Task> sortedTasks,
+                                  List<TaskRow> rows) {
+
         panel.removeAll();
 
         for (Task t : sortedTasks) {
