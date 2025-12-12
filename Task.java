@@ -1,102 +1,63 @@
+import java.io.Serializable;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public class Task {
-    private String id;
-    private String title;
+public class Task implements Serializable {
+
+    private static final long serialVersionUID = 3L;
+
+    // 일정 관리 필드 (Calendar / Schedule)
+    private UUID id;
+    private String name;
     private int priority;
-    private String dueDate; // yyyy-MM-dd
-    private boolean completed;
-    private String cycleFrequency; // NONE, DAILY, WEEKLY, MONTHLY
-    private LocalDateTime createdDateTime;
-    private LocalDateTime lastCompletedDateTime;
+    private LocalDate dueDate;
+    
+    // 기록 및 완료 상태 필드 (Pomodoro / Statistics)
+    private boolean isCompleted;
+    private int durationSec; // 해당 작업에 집중한 시간 (초)
+    private String evaluation; // 완료 시 감정 평가 (예: 기쁨, 보통, 슬픔)
+    private LocalDateTime recordDateTime; // 해당 작업이 완료된 시점 기록
 
-    // 생성자
-    public Task(String title, int priority, String dueDate) {
-        this.id = UUID.randomUUID().toString();
-        this.title = title;
+    // 생성자 (일정 등록용)
+    public Task(String name, int priority, LocalDate dueDate) {
+        this.id = UUID.randomUUID();
+        this.name = name;
         this.priority = priority;
         this.dueDate = dueDate;
-        this.completed = false;
-        this.cycleFrequency = "NONE";
-        this.createdDateTime = LocalDateTime.now();
-        this.lastCompletedDateTime = null;
+        this.isCompleted = false;
+        this.durationSec = 0;
     }
 
-    // 파일 로드용 생성자 (선택 사항, 필요시 추가)
-    public Task(String id, String title, int priority, String dueDate, boolean completed, String cycleFrequency, LocalDateTime createdDateTime, LocalDateTime lastCompletedDateTime) {
-        this.id = id;
-        this.title = title;
-        this.priority = priority;
-        this.dueDate = dueDate;
-        this.completed = completed;
-        this.cycleFrequency = cycleFrequency;
-        this.createdDateTime = createdDateTime;
-        this.lastCompletedDateTime = lastCompletedDateTime;
+    // 생성자 (통계 기록용 - 로직에서 사용)
+    public Task(String name, int durationSec, String evaluation, boolean completed) {
+        this.id = UUID.randomUUID();
+        this.name = name;
+        this.priority = 0; // 통계 기록에는 우선순위 불필요
+        this.dueDate = LocalDate.now();
+        this.isCompleted = completed;
+        this.durationSec = durationSec;
+        this.evaluation = evaluation;
+        this.recordDateTime = LocalDateTime.now();
     }
 
-    // (U) 내용 수정 로직
-    public void updateItem(String newTitle, Integer newPriority, String newDueDate, String newCycle) {
-        if (newTitle != null && !newTitle.isEmpty()) {
-            this.title = newTitle;
-        }
-        if (newPriority != null) {
-            this.priority = newPriority;
-        }
-        if (newDueDate != null && !newDueDate.isEmpty()) {
-            this.dueDate = newDueDate;
-        }
-        if (newCycle != null && !newCycle.isEmpty()) {
-            this.cycleFrequency = newCycle;
-        }
-    }
+    // --- Getter/Setter (모두 포함) ---
+    public UUID getId() { return id; }
+    public String getName() { return name; }
+    public int getPriority() { return priority; }
+    public LocalDate getDueDate() { return dueDate; }
+    public boolean isCompleted() { return isCompleted; }
+    public int getDurationSec() { return durationSec; }
+    public String getEvaluation() { return evaluation; }
+    public LocalDateTime getRecordDateTime() { return recordDateTime; }
 
-    // --- Getter & Setter ---
-    public String getId() {
-        return id;
-    }
+    public void setCompleted(boolean completed) { this.isCompleted = completed; }
+    public void setDurationSec(int durationSec) { this.durationSec = durationSec; }
+    public void setEvaluation(String evaluation) { this.evaluation = evaluation; }
+    public void setRecordDateTime(LocalDateTime recordDateTime) { this.recordDateTime = recordDateTime; }
 
-    public String getTitle() {
-        return title;
-    }
-    
-    public int getPriority() {
-        return priority;
-    }
-
-    public String getDueDate() {
-        return dueDate;
-    }
-
-    public void setDueDate(String dueDate) {
-        this.dueDate = dueDate;
-    }
-
-    public boolean isCompleted() {
-        return completed;
-    }
-
-    public void setCompleted(boolean completed) {
-        this.completed = completed;
-        if (completed) {
-            this.lastCompletedDateTime = LocalDateTime.now();
-        }
-    }
-
-    public String getCycleFrequency() {
-        return cycleFrequency;
-    }
-
-    public void setCycleFrequency(String cycleFrequency) {
-        this.cycleFrequency = cycleFrequency;
-    }
-    
-    // toString 오버라이딩 (디버깅/출력용)
     @Override
     public String toString() {
-        String cycle = cycleFrequency.equals("NONE") ? "" : " (반복: " + cycleFrequency + ")";
-        String status = completed ? "✅ 완료" : "🔴 미완료";
-        return String.format("[%s] %s (P%d) 마감: %s%s %s", 
-            id.substring(0, 4), title, priority, dueDate, cycle, status);
+        return String.format("%s [%d] %s (~%s)", isCompleted ? "✅" : "🔲", priority, name, dueDate);
     }
 }

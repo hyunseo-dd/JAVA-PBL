@@ -18,7 +18,7 @@ public class PomodoroPopup extends JDialog {
 
     private CircularProgressBar circleTimer;
 
-    /** ✨ Timer는 한 번만 생성 후 재사용 */
+    /** Timer는 한 번만 생성 */
     private Timer timer;
 
     private int focusMin;
@@ -34,12 +34,12 @@ public class PomodoroPopup extends JDialog {
     private final TaskService taskService;
     private final LocalDate today = LocalDate.now();
 
-    // ===== 오늘의 할 일(Task) =====
+    // ===== 오늘의 할 일 =====
     private DefaultListModel<Task> todoModel;
     private JList<Task> todoList;
     private JTextField addTodoField;
 
-    // ===================== 생성자 ============================
+    // ===================== 생성자 =====================
     public PomodoroPopup(JFrame parent, TaskService taskService) {
         super(parent, "Pomodoro Timer", true);
         this.taskService = taskService;
@@ -50,21 +50,18 @@ public class PomodoroPopup extends JDialog {
         getContentPane().setBackground(Color.WHITE);
 
         buildUI();
-        initTimer();  // ✨ Timer 최초 1회 생성
+        initTimer();
 
         setVisible(true);
     }
 
-    // =========================================================
-    // Timer 1회만 생성 → updateTimer()만 호출됨
-    // =========================================================
+    // ===================== Timer =====================
     private void initTimer() {
         timer = new Timer(1000, e -> updateTimer());
         timer.stop();
     }
 
     private void updateTimer() {
-
         remainingSeconds--;
         circleTimer.setTime(formatTime(remainingSeconds));
 
@@ -77,11 +74,9 @@ public class PomodoroPopup extends JDialog {
         }
     }
 
-
-    // ===================== UI 구성 ============================
+    // ===================== UI =====================
     private void buildUI() {
 
-        // ===== 상단 설정 =====
         JPanel configPanel = new JPanel(new GridLayout(3, 2, 10, 10));
         configPanel.setBackground(Color.WHITE);
         configPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 10, 20));
@@ -100,8 +95,6 @@ public class PomodoroPopup extends JDialog {
 
         add(configPanel, BorderLayout.NORTH);
 
-
-        // ===== 중앙: 원형 타이머 =====
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setBackground(Color.WHITE);
 
@@ -115,38 +108,32 @@ public class PomodoroPopup extends JDialog {
         centerPanel.add(sessionLabel, BorderLayout.SOUTH);
         add(centerPanel, BorderLayout.CENTER);
 
-
-        // ===== 오른쪽: 오늘의 할 일(Task) =====
+        // ===== 오늘의 할 일 =====
         JPanel todoPanel = new JPanel(new BorderLayout());
         todoPanel.setBorder(BorderFactory.createTitledBorder("오늘의 할 일"));
         todoPanel.setBackground(Color.WHITE);
 
         todoModel = new DefaultListModel<>();
-
-        // 오늘 일정 불러오기
-        List<Task> todayTasks = taskService.getTasks(today);
-        todayTasks.forEach(todoModel::addElement);
+        refreshTodoModel();
 
         todoList = new JList<>(todoModel);
         todoList.setFont(new Font("맑은 고딕", Font.PLAIN, 13));
 
-        // 체크/완료 토글
+        // ✅ 완료 토글 → 반드시 TaskService에 위임
         todoList.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 int idx = todoList.locationToIndex(e.getPoint());
                 if (idx >= 0) {
                     Task t = todoModel.get(idx);
-                    t.done = !t.done;
-                    reorderTodo();
-                    todoList.repaint();
+                    taskService.completeTask(t.getId());
+                    refreshTodoModel();
                 }
             }
         });
 
         todoPanel.add(new JScrollPane(todoList), BorderLayout.CENTER);
 
-        // 할 일 추가
         JPanel addPanel = new JPanel(new BorderLayout());
         addTodoField = new JTextField();
         JButton addButton = new JButton("추가");
@@ -157,11 +144,8 @@ public class PomodoroPopup extends JDialog {
         addPanel.add(addButton, BorderLayout.EAST);
 
         todoPanel.add(addPanel, BorderLayout.SOUTH);
-
         add(todoPanel, BorderLayout.EAST);
 
-
-        // ===== 하단 버튼 =====
         JPanel btnPanel = new JPanel();
         btnPanel.setBackground(Color.WHITE);
 
@@ -183,29 +167,29 @@ public class PomodoroPopup extends JDialog {
         add(btnPanel, BorderLayout.SOUTH);
     }
 
-    // ===================== 할 일 기능 ============================
-
+    // ===================== Todo =====================
     private void addTodo() {
         String text = addTodoField.getText().trim();
         if (text.isEmpty()) return;
 
-        Task task = new Task(text);
-        taskService.addTask(today, task);
-        todoModel.addElement(task);
+        // ✅ 파일 기반 TaskService API 사용
+        taskService.addTask(
+                text,
+                1,                 // priority (임시값)
+                today.toString()   // dueDate
+        );
 
+        refreshTodoModel();
         addTodoField.setText("");
     }
 
-    private void reorderTodo() {
-        List<Task> tasks = taskService.getTasks(today);
-        tasks.sort((a, b) -> Boolean.compare(a.done, b.done));
-
+    private void refreshTodoModel() {
         todoModel.clear();
+        List<Task> tasks = taskService.getTasksForToday(); // ✅ Service 전담
         tasks.forEach(todoModel::addElement);
     }
 
-    // ===================== Pomodoro 기능 ============================
-
+    // ===================== Pomodoro =====================
     private void startPomodoro() {
         try {
             focusMin = Integer.parseInt(focusField.getText().trim());
@@ -218,7 +202,6 @@ public class PomodoroPopup extends JDialog {
 
         isFocusSession = true;
         currentRepeat = 1;
-
         startSession();
 
         startBtn.setEnabled(false);
@@ -231,7 +214,6 @@ public class PomodoroPopup extends JDialog {
     }
 
     private void startSession() {
-
         if (isFocusSession) {
             remainingSeconds = focusMin * 60;
             sessionLabel.setText("집중 세션 (" + currentRepeat + "/" + repeatCount + ")");
@@ -243,11 +225,9 @@ public class PomodoroPopup extends JDialog {
         }
 
         totalSeconds = remainingSeconds;
-
         circleTimer.setTime(formatTime(remainingSeconds));
         circleTimer.setProgress(1.0);
-
-        timer.restart();   // ✨ Timer 신규 생성 X — 기존 Timer 재활용
+        timer.restart();
     }
 
     private void nextSession() {
@@ -257,29 +237,28 @@ public class PomodoroPopup extends JDialog {
         } else {
             isFocusSession = true;
             currentRepeat++;
-
             if (currentRepeat > repeatCount) {
                 finishPomodoro();
                 return;
             }
-
             startSession();
         }
     }
 
     private void finishPomodoro() {
 
+        timer.stop();
         circleTimer.setTime("끝!");
         circleTimer.setProgress(0);
         sessionLabel.setText("모든 세션 완료 🎉");
-
         pauseBtn.setEnabled(false);
 
-        // 완료된 할 일 자동 삭제
-        List<Task> tasks = taskService.getTasks(today);
-        tasks.removeIf(t -> t.done);
+        // ✅ 통계 저장 (TaskService와 독립)
+        DataRepository.getInstance().addRecord(
+                new TaskRecord(today, focusMin, repeatCount)
+        );
 
-        reorderTodo();
+        refreshTodoModel();
     }
 
     private void pauseResume() {
@@ -293,9 +272,7 @@ public class PomodoroPopup extends JDialog {
     }
 
     private void resetPomodoro() {
-
         timer.stop();
-
         circleTimer.setProgress(1.0);
         circleTimer.setTime("00:00");
         sessionLabel.setText("");

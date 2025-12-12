@@ -175,23 +175,20 @@ public class TaskService {
             .collect(Collectors.toList());
     }
 
-    public List<Task> getTasksForThisMonth() {
-        LocalDate today = LocalDate.now();
-        LocalDate startOfMonth = today.withDayOfMonth(1);
-        LocalDate endOfMonth = today.with(TemporalAdjusters.lastDayOfMonth());
+    public List<Task> getTasks(LocalDate date) {
 
         return taskList.stream()
             .filter(task -> {
+                if (task.isCompleted()) return false;
                 try {
                     LocalDate dueDate = LocalDate.parse(task.getDueDate());
-                    return !dueDate.isBefore(startOfMonth) && !dueDate.isAfter(endOfMonth);
+                    return dueDate.equals(date);
                 } catch (Exception e) {
                     return false;
                 }
             })
-            .sorted(Comparator.comparing(Task::getDueDate))
             .collect(Collectors.toList());
-    }
+}
 
     private void saveAllTasks() {
         fileManager.saveTasks(this.taskList);

@@ -9,21 +9,19 @@ public class CalendarMain extends JFrame {
 
     private JPanel sidebar;
     private JButton toggleBtn;
-
     private boolean sidebarOpen = false;
 
     public CalendarMain() {
 
-        this.taskService = new TaskService();
+        // ✅ 파일 기반 TaskService 생성자 사용
+        this.taskService = new TaskService("calendar_tasks.json");
 
         setTitle("Calendar with Pomodoro");
         setSize(1200, 650);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // ======================================================
-        //              상단 왼쪽 고정 햄버거 버튼
-        // ======================================================
+        // ================= 상단 바 =================
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
         topBar.setBackground(Color.WHITE);
 
@@ -32,16 +30,12 @@ public class CalendarMain extends JFrame {
         toggleBtn.setFocusPainted(false);
         toggleBtn.setBackground(Color.WHITE);
         toggleBtn.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-
         toggleBtn.addActionListener(e -> toggleSidebar());
 
         topBar.add(toggleBtn);
         add(topBar, BorderLayout.NORTH);
 
-
-        // ======================================================
-        //                     사이드바 (기본 숨김)
-        // ======================================================
+        // ================= 사이드바 =================
         sidebar = new JPanel();
         sidebar.setPreferredSize(new Dimension(220, 0));
         sidebar.setBackground(new Color(245, 245, 245));
@@ -50,25 +44,32 @@ public class CalendarMain extends JFrame {
 
         sidebar.add(Box.createVerticalStrut(10));
 
-        // ---- 메뉴 버튼 ----
         JButton todayBtn = createSidebarButton("Today Tasks");
-        todayBtn.addActionListener(e -> new TodayTasksPopup(this, taskService));
+        todayBtn.addActionListener(e ->
+                new TodayTasksPopup(this, taskService)
+        );
         sidebar.add(todayBtn);
 
         JButton weeklyBtn = createSidebarButton("Weekly Stats");
-        weeklyBtn.addActionListener(e -> new WeeklyStatsPopup(this));
+        weeklyBtn.addActionListener(e -> {
+            TimerAndStatsDialog dialog =
+                    new TimerAndStatsDialog(this, taskService);
+            dialog.showStatsTab();      // ✅ 통계 탭 바로 열기
+            dialog.setVisible(true);
+        });
         sidebar.add(weeklyBtn);
 
         JButton pomoBtn = createSidebarButton("Pomodoro Timer");
-        pomoBtn.addActionListener(e -> new PomodoroPopup(this, taskService));
+        pomoBtn.addActionListener(e -> {
+            TimerAndStatsDialog dialog =
+                    new TimerAndStatsDialog(this, taskService);
+            dialog.setVisible(true);    // ✅ 기본: 타이머 탭
+        });
         sidebar.add(pomoBtn);
 
         add(sidebar, BorderLayout.WEST);
 
-
-        // ======================================================
-        //                 중앙 CalendarView
-        // ======================================================
+        // ================= 캘린더 =================
         calendarView = new CalendarView(taskService);
         add(calendarView, BorderLayout.CENTER);
 
@@ -78,13 +79,22 @@ public class CalendarMain extends JFrame {
                 var tasks = taskService.getTasks(date);
 
                 if (tasks.isEmpty()) {
-                    JOptionPane.showMessageDialog(CalendarMain.this, date + "\n일정 없음");
+                    JOptionPane.showMessageDialog(
+                            CalendarMain.this,
+                            date + "\n일정 없음"
+                    );
                     return;
                 }
 
                 StringBuilder sb = new StringBuilder();
-                for (Task t : tasks) sb.append("- ").append(t).append("\n");
-                JOptionPane.showMessageDialog(CalendarMain.this, sb.toString());
+                for (Task t : tasks) {
+                    sb.append("- ").append(t).append("\n");
+                }
+
+                JOptionPane.showMessageDialog(
+                        CalendarMain.this,
+                        sb.toString()
+                );
             }
 
             @Override
@@ -98,9 +108,7 @@ public class CalendarMain extends JFrame {
         setVisible(true);
     }
 
-    // ======================================================
-    //          사이드바 버튼 스타일
-    // ======================================================
+    // ================= 버튼 스타일 =================
     private JButton createSidebarButton(String text) {
         JButton btn = new JButton(text);
 
@@ -123,24 +131,13 @@ public class CalendarMain extends JFrame {
         return btn;
     }
 
-    // ======================================================
-    //      사이드바 표시/숨김 (햄버거 버튼)
-    // ======================================================
     private void toggleSidebar() {
-
         sidebarOpen = !sidebarOpen;
-
-        if (sidebarOpen) {
-            sidebar.setVisible(true);      // 보이기
-        } else {
-            sidebar.setVisible(false);     // 완전히 사라짐
-        }
-
+        sidebar.setVisible(sidebarOpen);
         revalidate();
         repaint();
     }
 
-    // ======================================================
     public static void main(String[] args) {
         SwingUtilities.invokeLater(CalendarMain::new);
     }

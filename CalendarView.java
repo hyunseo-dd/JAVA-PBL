@@ -27,14 +27,10 @@ public class CalendarView extends JPanel {
         refreshCalendar();
     }
 
-    // ============================================================
-    //                       달력 다시 그리기
-    // ============================================================
     private void refreshCalendar() {
 
         removeAll();
 
-        // ----------------- 상단 월 네비게이션 -----------------
         JPanel top = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         top.setBackground(Color.WHITE);
 
@@ -63,13 +59,11 @@ public class CalendarView extends JPanel {
 
         add(top, BorderLayout.NORTH);
 
-        // ----------------- 6×7 Grid -----------------
         JPanel grid = new JPanel(new GridLayout(6, 7));
         grid.setBackground(Color.WHITE);
 
         String[] days = {"일", "월", "화", "수", "목", "금", "토"};
 
-        // 요일 라벨 (1행)
         for (int i = 0; i < days.length; i++) {
 
             JLabel lbl = new JLabel(days[i], SwingConstants.CENTER);
@@ -78,8 +72,8 @@ public class CalendarView extends JPanel {
             lbl.setFont(new Font("맑은 고딕", Font.BOLD, 14));
             lbl.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
 
-            if (i == 0) lbl.setForeground(Color.RED);      // 일요일
-            else if (i == 6) lbl.setForeground(Color.BLUE); // 토요일
+            if (i == 0) lbl.setForeground(Color.RED);      
+            else if (i == 6) lbl.setForeground(Color.BLUE); 
             else lbl.setForeground(Color.BLACK);
 
             grid.add(lbl);
@@ -91,26 +85,22 @@ public class CalendarView extends JPanel {
         LocalDate first = currentDate.withDayOfMonth(1);
         int firstDayIndex = first.getDayOfWeek().getValue() % 7;
 
-        int totalCells = 35; // 날짜 표시 5줄
+        int totalCells = 35;
 
-        // 앞달 계산
         YearMonth prevYm = ym.minusMonths(1);
         int prevDays = prevYm.lengthOfMonth();
         int prevCount = firstDayIndex;
         int nextCount = totalCells - (prevCount + daysInMonth);
 
-        // 앞달 칸
         for (int i = 0; i < prevCount; i++) {
             grid.add(createDisabledDayButton(prevDays - prevCount + i + 1));
         }
 
-        // 현재 달 날짜
         for (int day = 1; day <= daysInMonth; day++) {
             LocalDate date = currentDate.withDayOfMonth(day);
             grid.add(createDayButton(day, date));
         }
 
-        // 다음 달 칸
         for (int i = 1; i <= nextCount; i++) {
             grid.add(createDisabledDayButton(i));
         }
@@ -121,23 +111,18 @@ public class CalendarView extends JPanel {
         repaint();
     }
 
-    // ============================================================
-    //                 날짜 버튼 (일정 점 포함)
-    // ============================================================
     private JButton createDayButton(int day, LocalDate date) {
 
-        // 일정 점 ● 표시
         int taskCount = taskService.getTasks(date).size();
         String indicator = (taskCount > 0)
                 ? "<div style='font-size:10px; color:#0070F0;'>●</div>"
                 : "";
 
-        // 요일 색 지정
         String color;
         if (date.getDayOfWeek() == java.time.DayOfWeek.SUNDAY)
-            color = "#FF3B30"; // 빨간색
+            color = "#FF3B30"; 
         else if (date.getDayOfWeek() == java.time.DayOfWeek.SATURDAY)
-            color = "#0070F0"; // 파란색
+            color = "#0070F0"; 
         else
             color = "#000000";
 
@@ -158,7 +143,6 @@ public class CalendarView extends JPanel {
         btn.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
         btn.setMargin(new Insets(2, 4, 2, 2));
 
-        // 싱글 / 더블 클릭 타이머 기반
         btn.addActionListener(new ActionListener() {
 
             private Timer clickTimer = null;
@@ -184,10 +168,6 @@ public class CalendarView extends JPanel {
 
         return btn;
     }
-
-    // ============================================================
-    //              앞/뒷달 날짜 버튼 (비활성)
-    // ============================================================
     private JButton createDisabledDayButton(int day) {
 
         JButton btn = new JButton(
@@ -209,9 +189,6 @@ public class CalendarView extends JPanel {
         return btn;
     }
 
-    // ============================================================
-    //               네비게이션 버튼 스타일
-    // ============================================================
     private void styleButton(JButton btn) {
         btn.setBackground(Color.WHITE);
         btn.setForeground(Color.BLACK);

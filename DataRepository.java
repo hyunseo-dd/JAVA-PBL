@@ -1,59 +1,18 @@
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.*;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.TypeAdapter;
-import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
-import com.google.gson.stream.JsonToken;
 
 public class DataRepository {
 
     private static DataRepository instance;
-    private final String FILE_NAME = "task_records.json"; // 확장자 json으로 변경
-    private final Gson gson;
-    private List<TaskRecord> recordList;
+    private final String FILE_NAME = "task_records.dat";
 
-    // --- [1] LocalDateTime 어댑터 (TodoFileManager와 동일한 로직) ---
-    private static class LocalDateTimeAdapter extends TypeAdapter<LocalDateTime> {
-        private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    // TaskRecord 대신 통합된 Task 리스트 사용
+    private List<Task> taskList;
 
-        @Override
-        public void write(JsonWriter out, LocalDateTime value) throws IOException {
-            if (value == null) out.nullValue();
-            else out.value(value.format(FORMATTER));
-        }
-
-        @Override
-        public LocalDateTime read(JsonReader in) throws IOException {
-            if (in.peek() == JsonToken.NULL) {
-                in.nextNull();
-                return null;
-            }
-            String dateStr = in.nextString();
-            return (dateStr != null && !dateStr.isEmpty()) ? LocalDateTime.parse(dateStr, FORMATTER) : null;
-        }
-    }
-
-    // --- [2] 싱글톤 생성자 ---
     private DataRepository() {
-        // Gson 설정 (날짜 어댑터 등록 필수!)
-        this.gson = new GsonBuilder()
-                .setPrettyPrinting()
-                .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
-                .create();
-        
-        this.recordList = loadRecords();
+        this.taskList = loadTasks();
     }
 
     public static synchronized DataRepository getInstance() {
@@ -61,66 +20,72 @@ public class DataRepository {
         return instance;
     }
 
-    // --- [3] 데이터 추가 및 저장 ---
-    public void addRecord(TaskRecord record) {
-        recordList.add(record);
-        saveRecords();
-        System.out.println("✅ 통계 기록 저장됨: " + record.getTaskName());
-    }
-
-    // --- [4] 조회 메서드들 ---
-    public List<TaskRecord> getAllRecords() {
-        return recordList;
-    }
-
-    public List<TaskRecord> getRecordsByDate(LocalDate date) {
-        List<TaskRecord> result = new ArrayList<>();
-        for (TaskRecord r : recordList) {
-            if (r.getDateTime().toLocalDate().equals(date)) {
-                result.add(r);
-            }
-        }
-        return result;
-    }
+    // --- CRUD (C: Task 추가, R: Task 목록 가져오기) ---
     
-    // 주간 데이터 조회
-    public List<TaskRecord> getRecordsByWeek(LocalDate startOfWeek, LocalDate endOfWeek) {
-        List<TaskRecord> result = new ArrayList<>();
-        for (TaskRecord r : recordList) {
-            LocalDate d = r.getDateTime().toLocalDate();
-            if (!d.isBefore(startOfWeek) && !d.isAfter(endOfWeek)) {
-                result.add(r);
+    // (이름 변경) addRecord 대신 addTask 사용
+    public void addTask(Task task) {
+        taskList.add(task);
+        saveTasks();
+    }
+
+    // (이름 변경) getAllRecords 대신 getAllTasks 사용
+    public List<Task> getAllTasks() {
+        return taskList;
+    }
+
+    // --- 통계 필터링 함수 (TaskRecord -> Task로 타입 변경) ---
+
+    // (이름 변경) getRecordsByDate 대신 getTasksByDate 사용
+    public List<Task> getTasksByDate(LocalDate date) {
+        List<Task> result = new ArrayList<>();
+        for (Task t : taskList) {
+            // 기록된 날짜를 기준으로 필터링
+            if (t.getRecordDateTime() != null && t.getRecordDateTime().toLocalDate().equals(date)) {
+                result.add(t);
             }
         }
         return result;
     }
 
-    // --- [5] 파일 저장 (한글 깨짐 방지) ---
-    private void saveRecords() {
-        try {
-            String json = gson.toJson(recordList);
-            Files.write(Paths.get(FILE_NAME), json.getBytes(StandardCharsets.UTF_8));
-        } catch (IOException e) {
-            System.err.println("❌ 통계 저장 실패: " + e.getMessage());
+    // (이름 변경) getRecordsByWeek 대신 getTasksByWeek 사용
+    public List<Task> getTasksByWeek(LocalDate startOfWeek, LocalDate endOfWeek) {
+        List<Task> result = new ArrayList<>();
+        for (Task t : taskList) {
+            if (t.getRecordDateTime() != null) {
+                LocalDate d = t.getRecordDateTime().toLocalDate();
+                if (!d.isBefore(startOfWeek) && !d.isAfter(endOfWeek)) {
+                    result.add(t);
+                }
+            }
+        }
+        return result;
+    }
+
+    // --- I/O 로직 (TaskRecord 리스트 대신 Task 리스트 저장) ---
+
+    private void saveTasks() {
+        try (FileOutputStream fos = new FileOutputStream(FILE_NAME);
+             ObjectOutputStream oos = new ObjectOutputStream(fos)) {
+            // taskList 저장
+            oos.writeObject(taskList); 
+            System.out.println("✅ Task 리스트 저장 완료.");
+        } catch (Exception e) {
+            System.out.println("❌ Task 리스트 저장 실패: " + e.getMessage());
         }
     }
 
-    // --- [6] 파일 로드 (안전장치 포함) ---
-    private List<TaskRecord> loadRecords() {
+    private List<Task> loadTasks() {
         File file = new File(FILE_NAME);
-        if (!file.exists()) return new ArrayList<>();
-
-        try {
-            byte[] bytes = Files.readAllBytes(Paths.get(FILE_NAME));
-            String json = new String(bytes, StandardCharsets.UTF_8);
-
-            if (json.trim().isEmpty()) return new ArrayList<>();
-
-            List<TaskRecord> loaded = gson.fromJson(json, new TypeToken<List<TaskRecord>>() {}.getType());
-            return loaded != null ? loaded : new ArrayList<>();
-
+        if (!file.exists()) {
+            System.out.println("⚠ Task 파일 없음 → 새 리스트 생성");
+            return new ArrayList<>();
+        }
+        try (FileInputStream fis = new FileInputStream(FILE_NAME);
+             ObjectInputStream ois = new ObjectInputStream(fis)) {
+            // Task 리스트 로드
+            return (List<Task>) ois.readObject();
         } catch (Exception e) {
-            System.out.println("⚠️ 통계 파일 초기화 (형식 불일치 등): " + e.getMessage());
+            System.out.println("❌ Task 리스트 로드 실패: " + e.getMessage());
             return new ArrayList<>();
         }
     }
