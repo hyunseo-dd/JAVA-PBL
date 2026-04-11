@@ -57,6 +57,23 @@ public class Task implements Serializable {
     public String getEvaluation() { return evaluation; }
     public String getCycleFrequency() { return cycleFrequency; }
     
+    // TaskService가 사용하는 Setter 추가
+    public void setCycleFrequency(String cycleFrequency) {
+    this.cycleFrequency = cycleFrequency;
+    }
+
+    public void setTitle(String title) {
+    this.title = title;
+    }   
+
+    public void setPriority(int priority) {
+    this.priority = priority;
+    }
+
+    public void setDueDate(LocalDate dueDate) {
+    this.dueDate = dueDate; 
+    }
+
     // 기타 필요한 Setter (생략)
     public void setDurationSec(int durationSec) { this.durationSec = durationSec; }
     public void setEvaluation(String evaluation) { this.evaluation = evaluation; }
